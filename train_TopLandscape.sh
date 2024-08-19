@@ -12,11 +12,39 @@ DATADIR=${DATADIR_TopLandscape}
 # set a comment via `COMMENT`
 suffix=${COMMENT}
 
+
 # PN, PFN, PCNN, ParT
 model=$1
+PART_GEOM=$2
+PART_DIM=$3
+JET_GEOM=$4
+JET_DIM=$5
+
+
+# "kin"
+FEATURE_TYPE=$6
+[[ -z ${FEATURE_TYPE} ]] && FEATURE_TYPE="kin"
+if [[ "${FEATURE_TYPE}" != "kin" ]]; then
+    echo "Invalid feature type ${FEATURE_TYPE}!"
+    exit 1
+fi
+
+
+# Default values
+[[ -z ${PART_GEOM} ]] && PART_GEOM="R"
+[[ -z ${PART_DIM} ]] && PART_DIM=64
+[[ -z ${JET_GEOM} ]] && JET_GEOM="R"
+[[ -z ${JET_DIM} ]] && JET_DIM=64
+
+
 extraopts=""
+
 if [[ "$model" == "ParT" ]]; then
     modelopts="networks/example_ParticleTransformer.py --use-amp --optimizer-option weight_decay 0.01"
+    lr="1e-3"
+elif [[ "$model" == "PMTrans" ]]; then
+    modelopts="networks/example_PMTransformer.py --use-amp --optimizer-option weight_decay 0.01 --part-geom ${PART_GEOM} --part-dim ${PART_DIM} --jet-geom ${JET_GEOM} --jet-dim ${JET_DIM}"
+    suffix=${model}_${PART_GEOM}_${PART_DIM}_${JET_GEOM}_${JET_DIM}
     lr="1e-3"
 elif [[ "$model" == "ParT-FineTune" ]]; then
     modelopts="networks/example_ParticleTransformer_finetune.py --use-amp --optimizer-option weight_decay 0.01"
@@ -42,14 +70,6 @@ else
     exit 1
 fi
 
-# "kin"
-FEATURE_TYPE=$2
-[[ -z ${FEATURE_TYPE} ]] && FEATURE_TYPE="kin"
-if [[ "${FEATURE_TYPE}" != "kin" ]]; then
-    echo "Invalid feature type ${FEATURE_TYPE}!"
-    exit 1
-fi
-
 weaver \
     --data-train "${DATADIR}/train_file.parquet" \
     --data-val "${DATADIR}/val_file.parquet" \
@@ -57,7 +77,7 @@ weaver \
     --data-config data/TopLandscape/top_${FEATURE_TYPE}.yaml --network-config $modelopts \
     --model-prefix training/TopLandscape/${model}/{auto}${suffix}/net \
     --num-workers 1 --fetch-step 1 --in-memory \
-    --batch-size 512 --samples-per-epoch $((2400 * 512)) --samples-per-epoch-val $((800 * 512)) --num-epochs 20 --gpus 0 \
-    --start-lr $lr --optimizer ranger --log logs/TopLandscape_${model}_{auto}${suffix}.log --predict-output pred.root \
-    --tensorboard TopLandscape_${FEATURE_TYPE}_${model}${suffix} \
-    ${extraopts} "${@:3}"
+    --batch-size 256 --samples-per-epoch $((4800 * 256)) --samples-per-epoch-val $((1600 * 256)) --num-epochs 5 --gpus 0 \
+    --start-lr $lr --optimizer rlion --log Top_logs/TopLandscape_${model}_{auto}${suffix}.log --predict-output pred.root \
+    --tensorboard TopLandscape_${FEATURE_TYPE}_${model}_${suffix} \
+    ${extraopts} "${@:6}"

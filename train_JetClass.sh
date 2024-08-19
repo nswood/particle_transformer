@@ -22,16 +22,25 @@ else
     CMD="weaver"
 fi
 
-epochs=50
-samples_per_epoch=$((10000 * 1024 / $NGPUS))
-samples_per_epoch_val=$((10000 * 128))
-dataopts="--num-workers 2 --fetch-step 0.01"
+epochs=10
+samples_per_epoch=$((5000 * 256 / $NGPUS))
+samples_per_epoch_val=$((2000 * 256))
+dataopts="--num-workers 1 --fetch-step 0.01"
 
 # PN, PFN, PCNN, ParT
 model=$1
+PART_GEOM=$2
+PART_DIM=$3
+JET_GEOM=$4
+JET_DIM=$5
+
 if [[ "$model" == "ParT" ]]; then
     modelopts="networks/example_ParticleTransformer.py --use-amp"
     batchopts="--batch-size 512 --start-lr 1e-3"
+elif [[ "$model" == "PMTrans" ]]; then
+    modelopts="networks/example_PMTransformer.py --use-amp --optimizer-option weight_decay 0.01 --part-geom ${PART_GEOM} --part-dim ${PART_DIM} --jet-geom ${JET_GEOM} --jet-dim ${JET_DIM}"
+    suffix=${model}_${PART_GEOM}_${PART_DIM}_${JET_GEOM}_${JET_DIM}
+    batchopts="--batch-size 256 --start-lr 1e-3"
 elif [[ "$model" == "PN" ]]; then
     modelopts="networks/example_ParticleNet.py"
     batchopts="--batch-size 512 --start-lr 1e-2"
@@ -47,8 +56,12 @@ else
 fi
 
 # "kin", "kinpid", "full"
-FEATURE_TYPE=$2
+FEATURE_TYPE=$6
 [[ -z ${FEATURE_TYPE} ]] && FEATURE_TYPE="full"
+[[ -z ${PART_GEOM} ]] && PART_GEOM="R"
+[[ -z ${PART_DIM} ]] && PART_DIM=64
+[[ -z ${JET_GEOM} ]] && JET_GEOM="R"
+[[ -z ${JET_DIM} ]] && JET_DIM=64
 
 if ! [[ "${FEATURE_TYPE}" =~ ^(full|kin|kinpid)$ ]]; then
     echo "Invalid feature type ${FEATURE_TYPE}!"
@@ -86,6 +99,6 @@ $CMD \
     --model-prefix training/JetClass/${SAMPLE_TYPE}/${FEATURE_TYPE}/${model}/{auto}${suffix}/net \
     $dataopts $batchopts \
     --samples-per-epoch ${samples_per_epoch} --samples-per-epoch-val ${samples_per_epoch_val} --num-epochs $epochs --gpus 0 \
-    --optimizer ranger --log logs/JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}_{auto}${suffix}.log --predict-output pred.root \
+    --optimizer rlion --log-dir JetClass_logs/JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}_{auto}${suffix}.log --predict-output pred.root \
     --tensorboard JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}${suffix} \
-    "${@:3}"
+    "${@:7}"
