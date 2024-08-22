@@ -15,9 +15,33 @@ suffix=${COMMENT}
 
 # PN, PFN, PCNN, ParT
 model=$1
+PART_GEOM=$2
+PART_DIM=$3
+JET_GEOM=$4
+JET_DIM=$5
+
+
+# "kin"
+FEATURE_TYPE=$6
+# "kin", "kinpid", "kinpidplus"
+[[ -z ${FEATURE_TYPE} ]] && FEATURE_TYPE="kinpid"
+
+if [[ "${FEATURE_TYPE}" == "kin" ]]; then
+    pretrain_type="kin"
+elif [[ "${FEATURE_TYPE}" =~ ^(kinpid|kinpidplus)$ ]]; then
+    pretrain_type="kinpid"
+else
+    echo "Invalid feature type ${FEATURE_TYPE}!"
+    exit 1
+fi
+
 extraopts=""
 if [[ "$model" == "ParT" ]]; then
     modelopts="networks/example_ParticleTransformer.py --use-amp --optimizer-option weight_decay 0.01"
+    lr="1e-3"
+elif [[ "$model" == "PMTrans" ]]; then
+    modelopts="networks/example_PMTransformer.py --use-amp --optimizer-option weight_decay 0.01 --part-geom ${PART_GEOM} --part-dim ${PART_DIM} --jet-geom ${JET_GEOM} --jet-dim ${JET_DIM}"
+    suffix=${model}_${PART_GEOM}_${PART_DIM}_${JET_GEOM}_${JET_DIM}
     lr="1e-3"
 elif [[ "$model" == "ParT-FineTune" ]]; then
     modelopts="networks/example_ParticleTransformer_finetune.py --use-amp --optimizer-option weight_decay 0.01"
@@ -43,18 +67,7 @@ else
     exit 1
 fi
 
-# "kin", "kinpid", "kinpidplus"
-FEATURE_TYPE=$2
-[[ -z ${FEATURE_TYPE} ]] && FEATURE_TYPE="kinpid"
 
-if [[ "${FEATURE_TYPE}" == "kin" ]]; then
-    pretrain_type="kin"
-elif [[ "${FEATURE_TYPE}" =~ ^(kinpid|kinpidplus)$ ]]; then
-    pretrain_type="kinpid"
-else
-    echo "Invalid feature type ${FEATURE_TYPE}!"
-    exit 1
-fi
 
 if [[ "$model" == "ParT-FineTune" ]]; then
     modelopts+=" --load-model-weights models/ParT_${pretrain_type}.pt"
@@ -69,7 +82,7 @@ weaver \
     --data-config data/QuarkGluon/qg_${FEATURE_TYPE}.yaml --network-config $modelopts \
     --model-prefix training/QuarkGluon/${model}/{auto}${suffix}/net \
     --num-workers 1 --fetch-step 1 --in-memory --train-val-split 0.8889 \
-    --batch-size 512 --samples-per-epoch 1600000 --samples-per-epoch-val 200000 --num-epochs 20 --gpus 0 \
+    --batch-size 256 --samples-per-epoch 1600000 --samples-per-epoch-val 200000 --num-epochs 10 --gpus 0 \
     --start-lr $lr --optimizer ranger --log logs/QuarkGluon_${model}_{auto}${suffix}.log --predict-output pred.root \
     --tensorboard QuarkGluon_${FEATURE_TYPE}_${model}${suffix} \
-    ${extraopts} "${@:3}"
+    ${extraopts} "${@:7}"

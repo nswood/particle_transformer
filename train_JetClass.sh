@@ -23,7 +23,7 @@ else
 fi
 
 epochs=10
-samples_per_epoch=$((5000 * 256 / $NGPUS))
+samples_per_epoch=$((10000 * 256 / $NGPUS))
 samples_per_epoch_val=$((2000 * 256))
 dataopts="--num-workers 1 --fetch-step 0.01"
 
@@ -40,7 +40,7 @@ if [[ "$model" == "ParT" ]]; then
 elif [[ "$model" == "PMTrans" ]]; then
     modelopts="networks/example_PMTransformer.py --use-amp --optimizer-option weight_decay 0.01 --part-geom ${PART_GEOM} --part-dim ${PART_DIM} --jet-geom ${JET_GEOM} --jet-dim ${JET_DIM}"
     suffix=${model}_${PART_GEOM}_${PART_DIM}_${JET_GEOM}_${JET_DIM}
-    batchopts="--batch-size 256 --start-lr 1e-3"
+    batchopts="--batch-size 256 --start-lr 1e-4"
 elif [[ "$model" == "PN" ]]; then
     modelopts="networks/example_ParticleNet.py"
     batchopts="--batch-size 512 --start-lr 1e-2"
@@ -100,5 +100,5 @@ $CMD \
     $dataopts $batchopts \
     --samples-per-epoch ${samples_per_epoch} --samples-per-epoch-val ${samples_per_epoch_val} --num-epochs $epochs --gpus 0 \
     --optimizer rlion --log-dir JetClass_logs/JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}_{auto}${suffix}.log --predict-output pred.root \
-    --tensorboard JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}${suffix} \
+    --tensorboard JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${suffix} \
     "${@:7}"
