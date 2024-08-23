@@ -46,6 +46,10 @@ elif [[ "$model" == "PMTrans" ]]; then
     modelopts="networks/example_PMTransformer.py --use-amp --optimizer-option weight_decay 0.01 --part-geom ${PART_GEOM} --part-dim ${PART_DIM} --jet-geom ${JET_GEOM} --jet-dim ${JET_DIM}"
     suffix=${model}_${PART_GEOM}_${PART_DIM}_${JET_GEOM}_${JET_DIM}
     lr="1e-3"
+elif [[ "$model" == "PMTransMod" ]]; then
+    modelopts="networks/example_PMTransformer_modified.py --use-amp --optimizer-option weight_decay 0.01 --part-geom ${PART_GEOM} --part-dim ${PART_DIM} --jet-geom ${JET_GEOM} --jet-dim ${JET_DIM}"
+    suffix=${model}_${PART_GEOM}_${PART_DIM}_${JET_GEOM}_${JET_DIM}
+    lr="1e-5"
 elif [[ "$model" == "PMTransBench" ]]; then
     modelopts="networks/example_PMTransformer_Benchmarks.py --use-amp --optimizer-option weight_decay 0.01 --part-geom ${PART_GEOM} --part-dim ${PART_DIM} --jet-geom ${JET_GEOM} --jet-dim ${JET_DIM}"
     suffix=${model}_${PART_GEOM}_${PART_DIM}_${JET_GEOM}_${JET_DIM}
@@ -81,7 +85,7 @@ weaver \
     --data-config data/TopLandscape/top_${FEATURE_TYPE}.yaml --network-config $modelopts \
     --model-prefix training/TopLandscape/${model}/{auto}${suffix}/net \
     --num-workers 1 --fetch-step 1 --in-memory \
-    --batch-size 256 --samples-per-epoch $((4800 * 256)) --samples-per-epoch-val $((1600 * 256)) --num-epochs 5 --gpus 0 \
+    --batch-size 256 --samples-per-epoch $((4800 * 256)) --samples-per-epoch-val $((1600 * 256)) --num-epochs 10 --gpus 0 \
     --start-lr $lr --optimizer rlion --log Top_logs/TopLandscape_${model}_{auto}${suffix}.log --predict-output pred.root \
     --tensorboard TopLandscape_${FEATURE_TYPE}_${model}_${suffix} \
     ${extraopts} "${@:6}"

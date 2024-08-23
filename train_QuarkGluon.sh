@@ -43,6 +43,10 @@ elif [[ "$model" == "PMTrans" ]]; then
     modelopts="networks/example_PMTransformer.py --use-amp --optimizer-option weight_decay 0.01 --part-geom ${PART_GEOM} --part-dim ${PART_DIM} --jet-geom ${JET_GEOM} --jet-dim ${JET_DIM}"
     suffix=${model}_${PART_GEOM}_${PART_DIM}_${JET_GEOM}_${JET_DIM}
     lr="1e-3"
+elif [[ "$model" == "PMTransMod" ]]; then
+    modelopts="networks/example_PMTransformer_modified.py --use-amp --optimizer-option weight_decay 0.01 --part-geom ${PART_GEOM} --part-dim ${PART_DIM} --jet-geom ${JET_GEOM} --jet-dim ${JET_DIM}"
+    suffix=${model}_${PART_GEOM}_${PART_DIM}_${JET_GEOM}_${JET_DIM}
+    lr="1e-3"
 elif [[ "$model" == "ParT-FineTune" ]]; then
     modelopts="networks/example_ParticleTransformer_finetune.py --use-amp --optimizer-option weight_decay 0.01"
     lr="1e-4"
@@ -83,6 +87,6 @@ weaver \
     --model-prefix training/QuarkGluon/${model}/{auto}${suffix}/net \
     --num-workers 1 --fetch-step 1 --in-memory --train-val-split 0.8889 \
     --batch-size 256 --samples-per-epoch 1600000 --samples-per-epoch-val 200000 --num-epochs 10 --gpus 0 \
-    --start-lr $lr --optimizer ranger --log logs/QuarkGluon_${model}_{auto}${suffix}.log --predict-output pred.root \
+    --start-lr $lr --optimizer rlion --log logs/QuarkGluon_${model}_{auto}${suffix}.log --predict-output pred.root \
     --tensorboard QuarkGluon_${FEATURE_TYPE}_${model}${suffix} \
     ${extraopts} "${@:7}"

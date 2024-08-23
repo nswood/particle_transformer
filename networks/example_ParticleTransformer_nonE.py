@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 from weaver.nn.model.ParticleTransformer import ParticleTransformer
 from weaver.utils.logger import _logger
 
@@ -9,24 +8,9 @@ https://github.com/hqucms/weaver-core/blob/main/weaver/nn/model/ParticleTransfor
 '''
 
 
-class ParticleTransformerWrapper(nn.Module):
+class ParticleTransformerWrapper(torch.nn.Module):
     def __init__(self, **kwargs) -> None:
         super().__init__()
-
-        in_dim = kwargs['embed_dims'][-1]
-        fc_params = kwargs.pop('fc_params')
-        num_classes = kwargs.pop('num_classes')
-        self.for_inference = kwargs['for_inference']
-
-        fcs = []
-        for out_dim, drop_rate in fc_params:
-            fcs.append(nn.Sequential(nn.Linear(in_dim, out_dim), nn.ReLU(), nn.Dropout(drop_rate)))
-            in_dim = out_dim
-        fcs.append(nn.Linear(in_dim, num_classes))
-        self.fc = nn.Sequential(*fcs)
-
-        kwargs['num_classes'] = None
-        kwargs['fc_params'] = None
         self.mod = ParticleTransformer(**kwargs)
 
     @torch.jit.ignore
@@ -34,11 +18,7 @@ class ParticleTransformerWrapper(nn.Module):
         return {'mod.cls_token', }
 
     def forward(self, points, features, lorentz_vectors, mask):
-        x_cls = self.mod(features, v=lorentz_vectors, mask=mask)
-        output = self.fc(x_cls)
-        if self.for_inference:
-            output = torch.softmax(output, dim=1)
-        return output
+        return self.mod(features, v=lorentz_vectors, mask=mask)
 
 
 def get_model(data_config, **kwargs):
@@ -56,7 +36,7 @@ def get_model(data_config, **kwargs):
         num_cls_layers=2,
         block_params=None,
         cls_block_params={'dropout': 0, 'attn_dropout': 0, 'activation_dropout': 0},
-        fc_params=[[64,0.1],[32,0.1],[32,0.1],[32,0.1]],
+        fc_params=[],
         activation='gelu',
         # misc
         trim=True,

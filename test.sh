@@ -36,44 +36,45 @@ source /n/holystore01/LABS/iaifi_lab/Users/nswood/mambaforge/etc/profile.d/conda
 
 conda activate top_env
 
-# DDP_NGPUS=2 ./train_TopLandscape.sh ParT kin
+# DDP_NGPUS=1 ./train_JetClass.sh PMTrans R 32 R 4 full
+# DDP_NGPUS=1 ./train_JetClass.sh PMTrans R 32 H 4 full
 
-DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans R 8 RxH 8
+# DDP_NGPUS=1 ./train_JetClass.sh PMTrans R 32 H 8 full
 
-# DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans RxH 4 R 16
-# DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans RxS 4 R 16
-# DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans HxS 4 R 16
-# DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans S 8 R 16
-# DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans H 8 R 16
-
-# DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans R 16 R 16
-# DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans RxH 8 R 16
-# DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans RxS 8 R 16
-# DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans HxS 8 R 16
-# DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans S 16 R 16
-# DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans H 16 R 16
-
-# DDP_NGPUS=1 ./train_JetClass.sh PMTrans R 8 R 16 full
-# DDP_NGPUS=1 ./train_JetClass.sh PMTrans RxH 4 R 16 full
-# DDP_NGPUS=1 ./train_JetClass.sh PMTrans RxS 4 R 16 full
-# DDP_NGPUS=1 ./train_JetClass.sh PMTrans HxS 4 R 16 full
-# DDP_NGPUS=1 ./train_JetClass.sh PMTrans S 8 R 16 full
-# DDP_NGPUS=1 ./train_JetClass.sh PMTrans H 8 R 16 full
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 16 R 4
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTransMod R 32 H 4
 
 
 
 
-# DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans R 8 R 64
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 R 8
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 S 8
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 RxH 4
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 RxS 4
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 HxS 4
 
 
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 R 16
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 H 16
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 S 16
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 RxH 8
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 RxS 8
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 HxS 8
 
 
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 R 32
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 H 32
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 S 32
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 RxH 16
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 RxS 16
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 HxS 16
 
-
-
-# DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans S 8 R 64
-
-
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 R 64
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 H 64
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 S 64
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 RxH 32
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 RxS 32
+# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 64 HxS 32
 
 
 
