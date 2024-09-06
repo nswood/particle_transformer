@@ -1,5 +1,5 @@
 import torch
-from weaver.nn.model.PMTransformer import *
+from weaver.nn.model.PMNN import *
 from weaver.utils.logger import _logger
 
 '''
@@ -8,10 +8,10 @@ https://github.com/hqucms/weaver-core/blob/main/weaver/nn/model/ParticleTransfor
 '''
 
 
-class PMTransformerWrapper(torch.nn.Module):
+class PMNNWrapper(torch.nn.Module):
     def __init__(self, **kwargs) -> None:
         super().__init__()
-        self.mod = PMTransformer(**kwargs)
+        self.mod = PMNN(**kwargs)
 
     @torch.jit.ignore
     def no_weight_decay(self):
@@ -19,38 +19,18 @@ class PMTransformerWrapper(torch.nn.Module):
 
     def forward(self, points, features, lorentz_vectors, mask):
         return self.mod(features, v=lorentz_vectors, mask=mask)
-
-class PMTransformerEmbedderWrapper(torch.nn.Module):
-    def __init__(self, **kwargs) -> None:
-        super().__init__()
-        self.mod = PMTransformerEmbedder(**kwargs)
-
-    @torch.jit.ignore
-    def no_weight_decay(self):
-        return {'mod.cls_token', }
-
-    def forward(self, points, features, lorentz_vectors, mask):
-        return self.mod(features, v=lorentz_vectors, mask=mask)
-
-
 
 def get_model(data_config, **kwargs):
     print("kwargs:", kwargs)
-    
+    print("data config:", data_config)
 
     cfg = dict(
         input_dim=len(data_config.input_dicts['pf_features']),
         num_classes=len(data_config.label_value),
         # network configurations
-        pair_input_dim=4,
         use_pre_activation_pair=False,
-        pair_embed_dims=[32, 32, 32],
-        num_heads=1,
-        num_layers=2,
-        num_cls_layers=2,
-        block_params=None,
-        cls_block_params={'dropout': 0, 'attn_dropout': 0, 'activation_dropout': 0},
         activation='relu',
+#         n_particles = len(data_config.input_dicts['pf_points']),
         # misc
         trim=True,
         for_inference=False,
@@ -63,7 +43,7 @@ def get_model(data_config, **kwargs):
 #         model = PMTransformerEmbedderWrapper(**cfg)
 
 #     else:
-    model = PMTransformerWrapper(**cfg)
+    model = PMNNWrapper(**cfg)
 
     model_info = {
         'input_names': list(data_config.input_names),

@@ -21,13 +21,13 @@ preprocess:
 
 inputs:
    pf_points:
-      length: 128
+      length: 32
       pad_mode: wrap
       vars: 
          - [part_deta, null]
          - [part_dphi, null]
    pf_features:
-      length: 128
+      length: 32
       pad_mode: wrap
       vars: 
       ### [format 1]: var_name (no transformation)
@@ -45,7 +45,7 @@ inputs:
          - [part_deta, null]
          - [part_dphi, null]
    pf_vectors:
-      length: 128
+      length: 32
       pad_mode: wrap
       vars: 
          - [part_px, null]
@@ -53,7 +53,7 @@ inputs:
          - [part_pz, null]
          - [part_energy, null]
    pf_mask:
-      length: 128
+      length: 32
       pad_mode: constant
       vars: 
          - [part_mask, null]

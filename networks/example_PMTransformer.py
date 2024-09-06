@@ -1,5 +1,5 @@
 import torch
-from weaver.nn.model.PMTransformer import PMTransformer
+from weaver.nn.model.PMTransformer import *
 from weaver.utils.logger import _logger
 
 '''
@@ -20,10 +20,23 @@ class PMTransformerWrapper(torch.nn.Module):
     def forward(self, points, features, lorentz_vectors, mask):
         return self.mod(features, v=lorentz_vectors, mask=mask)
 
+class PMTransformerEmbedderWrapper(torch.nn.Module):
+    def __init__(self, **kwargs) -> None:
+        super().__init__()
+        self.mod = PMTransformerEmbedder(**kwargs)
+
+    @torch.jit.ignore
+    def no_weight_decay(self):
+        return {'mod.cls_token', }
+
+    def forward(self, points, features, lorentz_vectors, mask):
+        return self.mod(features, v=lorentz_vectors, mask=mask)
+
+
 
 def get_model(data_config, **kwargs):
     print("kwargs:", kwargs)
-
+    
 
     cfg = dict(
         input_dim=len(data_config.input_dicts['pf_features']),
@@ -44,7 +57,12 @@ def get_model(data_config, **kwargs):
     )
     cfg.update(**kwargs)
     _logger.info('Model config: %s' % str(cfg))
+   
+    
+#     if cfg.embedding_mode:
+#         model = PMTransformerEmbedderWrapper(**cfg)
 
+#     else:
     model = PMTransformerWrapper(**cfg)
 
     model_info = {
