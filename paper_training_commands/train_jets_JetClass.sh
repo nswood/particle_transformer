@@ -1,13 +1,13 @@
 #!/bin/bash
-#SBATCH --job-name=JC_jets
+#SBATCH --job-name=JC_j1
 #SBATCH --partition=gpu
 #SBATCH --time=72:00:00
 
 ### e.g. request 4 nodes with 1 gpu each, totally 4 gpus (WORLD_SIZE==4)
 ### Note: --gres=gpu:x should equal to ntasks-per-node
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=2
-#SBATCH --gres=gpu:2
+#SBATCH --ntasks-per-node=4
+#SBATCH --gres=gpu:4
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=250G
 #SBATCH --chdir=/n/home11/nswood/particle_transformer/
@@ -16,7 +16,7 @@
 ### change 5-digit MASTER_PORT as you wish, slurm will raise Error if duplicated with others
 ### change WORLD_SIZE as gpus/node * num_nodes
 export MASTER_PORT=19304
-export WORLD_SIZE=2
+export WORLD_SIZE=4
 
 ### get the first node name as master address - customized for vgg slurm
 ### e.g. master(gnodee[2-5],gnoded1) == gnodee2
@@ -36,45 +36,45 @@ source /n/holystore01/LABS/iaifi_lab/Users/nswood/mambaforge/etc/profile.d/conda
 
 conda activate top_env
 
-# 4D
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 R 4 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 RxH 2 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 RxS 2 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 HxS 2 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 S 4 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 H 4 full
+# 4Dn
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 R 4 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 RxH 2 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 RxS 2 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 HxS 2 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 S 4 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 H 4 full
 
 # 8D
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 R 8 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 RxH 4 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 RxS 4 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 HxS 4 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 S 8 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 H 8 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 R 8 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 RxH 4 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 RxS 4 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 HxS 4 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 S 8 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 H 8 full
 
 # 16D
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 R 16 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 RxH 8 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 RxS 8 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 HxS 8 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 S 8 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 H 8 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 R 16 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 RxH 8 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 RxS 8 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 HxS 8 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 S 16 full
+DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 16 H 16 full
 
-# 32D
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 R 32 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 RxH 16 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 RxS 16 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 HxS 16 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 S 32 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 H 32 full
+# # 32D
+# DDP_NGPUS=4 ./train_JetClass.sh PMTrans R 32 R 32 full
+# DDP_NGPUS=4 ./train_JetClass.sh PMTrans R 32 RxH 16 full
+# DDP_NGPUS=4 ./train_JetClass.sh PMTrans R 32 RxS 16 full
+# DDP_NGPUS=4 ./train_JetClass.sh PMTrans R 32 HxS 16 full
+# DDP_NGPUS=4 ./train_JetClass.sh PMTrans R 32 S 32 full
+DDP_NGPUS=4 ./train_JetClass.sh PMTrans R 32 H 32 full
 
 # 64D
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 R 64 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 RxH 32 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 RxS 32 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 HxS 32 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 S 64 full
-DDP_NGPUS=2 ./train_JetClass.sh PMTrans R 32 H 64 full
+# DDP_NGPUS=4 ./train_JetClass.sh PMTrans R 32 R 64 full
+# DDP_NGPUS=4 ./train_JetClass.sh PMTrans R 32 RxH 32 full
+# DDP_NGPUS=4 ./train_JetClass.sh PMTrans R 32 RxS 32 full
+# DDP_NGPUS=4 ./train_JetClass.sh PMTrans R 32 HxS 32 full
+# DDP_NGPUS=4 ./train_JetClass.sh PMTrans R 32 S 64 full
+# DDP_NGPUS=4 ./train_JetClass.sh PMTrans R 32 H 64 full
 
 # DDP_NGPUS=1 ./train_JetClass.sh PMTrans R 8 R 16 full full
 # DDP_NGPUS=1 ./train_JetClass.sh PMTrans RxH 4 R 16 full full

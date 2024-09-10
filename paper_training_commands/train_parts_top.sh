@@ -69,34 +69,11 @@ DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans S 32 R 16
 DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans H 32 R 16
 
 # 64D
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans R 64 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxH 32 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxS 32 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans HxS 32 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans S 64 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans H 64 R 16
-
-# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans R 8 R 16 full
-# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans RxH 4 R 16 full
-# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans RxS 4 R 16 full
-# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans HxS 4 R 16 full
-# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans S 8 R 16 full
-# DDP_NGPUS=1 ./train_TopLandscape.sh PMTrans H 8 R 16 full
-
-
-
-
-# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans R 8 R 64
-
-
-
-
-
-
-
-# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans S 8 R 64
-
-
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans R 128 R 128
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxS 32 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans HxS 32 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans S 64 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans H 64 R 16
 
 
 
