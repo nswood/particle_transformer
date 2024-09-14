@@ -17,24 +17,7 @@ suffix=${COMMENT}
 model=$1
 PART_GEOM=$2
 PART_DIM=$3
-JET_GEOM=$4
-JET_DIM=$5
 
-
-# "kin"
-FEATURE_TYPE=$6
-[[ -z ${FEATURE_TYPE} ]] && FEATURE_TYPE="kin"
-if [[ "${FEATURE_TYPE}" != "kin" ]]; then
-    echo "Invalid feature type ${FEATURE_TYPE}!"
-    exit 1
-fi
-
-
-# Default values
-[[ -z ${PART_GEOM} ]] && PART_GEOM="R"
-[[ -z ${PART_DIM} ]] && PART_DIM=64
-[[ -z ${JET_GEOM} ]] && JET_GEOM="R"
-[[ -z ${JET_DIM} ]] && JET_DIM=64
 
 
 extraopts=""
@@ -43,8 +26,30 @@ if [[ "$model" == "ParT" ]]; then
     modelopts="networks/example_ParticleTransformer.py --use-amp --optimizer-option weight_decay 0.01"
     lr="1e-3"
 elif [[ "$model" == "PMTrans" ]]; then
+    JET_GEOM=$4
+    JET_DIM=$5
+
+    # "kin"
+    FEATURE_TYPE=$6
+    [[ -z ${FEATURE_TYPE} ]] && FEATURE_TYPE="kin"
+    if [[ "${FEATURE_TYPE}" != "kin" ]]; then
+        echo "Invalid feature type ${FEATURE_TYPE}!"
+        exit 1
+    fi
+    
     modelopts="networks/example_PMTransformer.py --use-amp --optimizer-option weight_decay 0.01 --part-geom ${PART_GEOM} --part-dim ${PART_DIM} --jet-geom ${JET_GEOM} --jet-dim ${JET_DIM}"
     suffix=${model}_${PART_GEOM}_${PART_DIM}_${JET_GEOM}_${JET_DIM}
+    lr="1e-3"
+elif [[ "$model" == "PMNN" ]]; then
+    # "kin"
+    FEATURE_TYPE=$4
+    [[ -z ${FEATURE_TYPE} ]] && FEATURE_TYPE="kin"
+    if [[ "${FEATURE_TYPE}" != "kin" ]]; then
+        echo "Invalid feature type ${FEATURE_TYPE}!"
+        exit 1
+    fi
+    modelopts="networks/example_PMNN.py --use-amp --optimizer-option weight_decay 0.01 --part-geom ${PART_GEOM} --part-dim ${PART_DIM}"
+    suffix=${model}_${PART_GEOM}_${PART_DIM}
     lr="1e-3"
 elif [[ "$model" == "PMTransMod" ]]; then
     modelopts="networks/example_PMTransformer_modified.py --use-amp --optimizer-option weight_decay 0.01 --part-geom ${PART_GEOM} --part-dim ${PART_DIM} --jet-geom ${JET_GEOM} --jet-dim ${JET_DIM}"
@@ -88,4 +93,4 @@ weaver \
     --batch-size 256 --samples-per-epoch $((4800 * 256)) --samples-per-epoch-val $((1600 * 256)) --num-epochs 10 --gpus 0 \
     --start-lr $lr --optimizer rlion --log Top_logs/TopLandscape_${model}_{auto}${suffix}.log --predict-output pred.root \
     --tensorboard TopLandscape_${FEATURE_TYPE}_${model}_${suffix} \
-    ${extraopts} "${@:6}"
+    ${extraopts} "${@:7}"

@@ -1,29 +1,17 @@
 import torch
 from weaver.nn.model.PMTransformer import *
 from weaver.utils.logger import _logger
+from PMSimCLR_loss import PMSimCLR
 
 '''
 Link to the full model implementation:
 https://github.com/hqucms/weaver-core/blob/main/weaver/nn/model/ParticleTransformer.py
 '''
 
-
-class PMTransformerWrapper(torch.nn.Module):
-    def __init__(self, **kwargs) -> None:
-        super().__init__()
-        self.mod = PMTransformer(**kwargs)
-
-    @torch.jit.ignore
-    def no_weight_decay(self):
-        return {'mod.cls_token', }
-
-    def forward(self, points, features, lorentz_vectors, mask,embed = False):
-        return self.mod(features, v=lorentz_vectors, mask=mask,embed = embed)
-
 class PMTransformerEmbedderWrapper(torch.nn.Module):
     def __init__(self, **kwargs) -> None:
         super().__init__()
-        self.mod = PMTransformerEmbedder(**kwargs)
+        self.mod = PMTransformer(**kwargs)
 
     @torch.jit.ignore
     def no_weight_decay(self):
@@ -63,7 +51,7 @@ def get_model(data_config, **kwargs):
 #         model = PMTransformerEmbedderWrapper(**cfg)
 
 #     else:
-    model = PMTransformerWrapper(**cfg)
+    model = PMTransformerEmbedderWrapper(**cfg)
 
     model_info = {
         'input_names': list(data_config.input_names),
@@ -74,6 +62,5 @@ def get_model(data_config, **kwargs):
 
     return model, model_info
 
-
 def get_loss(data_config, **kwargs):
-    return torch.nn.CrossEntropyLoss()
+    return PMSimCLR()
