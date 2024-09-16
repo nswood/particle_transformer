@@ -21,13 +21,13 @@ preprocess:
 
 inputs:
    pf_points:
-      length: 128
+      length: 64
       pad_mode: wrap
       vars: 
          - [part_deta, null]
          - [part_dphi, null]
    pf_features:
-      length: 128
+      length: 64
       pad_mode: wrap
       vars: 
       ### [format 1]: var_name (no transformation)
@@ -37,10 +37,10 @@ inputs:
       ###              clip_min(optional, default=-5), 
       ###              clip_max(optional, default=5), 
       ###              pad_value(optional, default=0)]
-         - [part_pt_log, 1.7, 0.7]
-         - [part_e_log, 2.0, 0.7]
-         - [part_logptrel, -4.7, 0.7]
-         - [part_logerel, -4.7, 0.7]
+         - [part_pt_log, 1.7, 5]
+         - [part_e_log, 2.0, 5]
+         - [part_deta, null]
+         - [part_dphi, null]
          - [part_deltaR, 0.2, 4.0]
          - [part_charge, null]
          - [part_isChargedHadron, null]
@@ -48,10 +48,9 @@ inputs:
          - [part_isPhoton, null]
          - [part_isElectron, null]
          - [part_isMuon, null]
-         - [part_deta, null]
-         - [part_dphi, null]
+         
    pf_vectors:
-      length: 128
+      length: 64
       pad_mode: wrap
       vars: 
          - [part_px, null]
@@ -59,7 +58,7 @@ inputs:
          - [part_pz, null]
          - [part_energy, null]
    pf_mask:
-      length: 128
+      length: 64
       pad_mode: constant
       vars: 
          - [part_mask, null]
