@@ -36,37 +36,61 @@ source /n/holystore01/LABS/iaifi_lab/Users/nswood/mambaforge/etc/profile.d/conda
 
 conda activate top_env
 
-# 4D
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans R 4 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxH 2 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxS 2 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans HxS 2 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans S 4 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans H 4 R 16
+# dimensions=(64 96 128)
+dimensions=(128 256)
 
-# 8D
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans R 8 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxH 4 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxS 4 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans HxS 4 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans S 8 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans H 8 R 16
 
-# 16D
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans R 16 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxH 8 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxS 8 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans HxS 8 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans S 16 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans H 16 R 16
 
-# 32D
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans R 32 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxH 16 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxS 16 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans HxS 16 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans S 32 R 16
-DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans H 32 R 16
+# Loop over each dimension in the list
+for dimension in "${dimensions[@]}"; do
+    half_dimension=$((dimension / 2))  # Calculate half of the dimension
+
+    # Command with full dimension
+#     DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans R "$dimension" R 16 kin --PM-weight-initialization-factor 1 --inter-man-att 2 --inter-man-att-method 'v2' --dev-id 'tuned_paper' --att-metric 'tan_space' --num-epochs 20 --base-resid-agg --base-activations 'act'
+#     DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans H "$dimension" R 16
+#     DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans S "$dimension" R 16
+    
+    # Commands with dimensions / 2
+#     DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxH "$half_dimension" R 16
+    DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxH "$half_dimension" R 64 kin --PM-weight-initialization-factor 1 --inter-man-att 0 --inter-man-att-method 'v3' --dev-id 'tuned_paper_v3' --att-metric 'tan_space' --num-epochs 30 --base-resid-agg --base-activations 'act' --network-option num_layers 8
+    
+#     DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxS "$half_dimension" R 16
+#     DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans HxS "$half_dimension" R 16
+#     DDP_NGPUS=2 ./train_TopLandscape.sh PMTrans RxR "$half_dimension" R 16 kin --PM-weight-initialization-factor 1 --inter-man-att 2 --inter-man-att-method 'v3' --dev-id 'tuned_paper_v3' --att-metric 'tan_space' --num-epochs 20 --base-resid-agg --base-activations 'act'
+    
+done
+
+# # 4D
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans R 4 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxH 2 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxS 2 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans HxS 2 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans S 4 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans H 4 R 16
+
+# # 8D
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans R 8 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxH 4 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxS 4 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans HxS 4 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans S 8 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans H 8 R 16
+
+# # 16D
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans R 16 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxH 8 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxS 8 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans HxS 8 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans S 16 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans H 16 R 16
+
+# # 32D
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans R 32 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxH 16 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans RxS 16 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans HxS 16 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans S 32 R 16
+# DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans H 32 R 16
 
 # 64D
 # DDP_NGPUS=4 ./train_TopLandscape.sh PMTrans R 128 R 128

@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=JC_p
+#SBATCH --job-name=jc_p
 #SBATCH --partition=gpu
-#SBATCH --time=72:00:00
+#SBATCH --time=12:00:00
 
 ### e.g. request 4 nodes with 1 gpu each, totally 4 gpus (WORLD_SIZE==4)
 ### Note: --gres=gpu:x should equal to ntasks-per-node
@@ -15,7 +15,7 @@
 
 ### change 5-digit MASTER_PORT as you wish, slurm will raise Error if duplicated with others
 ### change WORLD_SIZE as gpus/node * num_nodes
-export MASTER_PORT=19304
+export MASTER_PORT=19322
 export WORLD_SIZE=4
 
 ### get the first node name as master address - customized for vgg slurm
@@ -36,68 +36,57 @@ source /n/holystore01/LABS/iaifi_lab/Users/nswood/mambaforge/etc/profile.d/conda
 
 conda activate top_env
 
-# # 8D
-# DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R 8 R 16 kinpid
-# DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans RxH 4 R 16 kinpid
-# DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans RxS 4 R 16 kinpid
-# DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans HxS 4 R 16 kinpid
-# DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans S 8 R 16 kinpid
-# DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans H 8 R 16 kinpid
 
-dimensions=(8 16 32 64)  # Add your dimensions here
+dimensions=(96 64 48 32)
 
 # Loop over each dimension in the list
 for dimension in "${dimensions[@]}"; do
     half_dimension=$((dimension / 2))  # Calculate half of the dimension
 
     # Command with full dimension
-    DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans R "$dimension" R 16 kinpid
-    DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans H "$dimension" R 16 kinpid
-    DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans S "$dimension" R 16 kinpid
+    DDP_NGPUS=4 COMMENT=final_jetclass_part_lvl ./train_JetClass.sh PMTrans R "$dimension" R 16 kinpid --num-epochs 20 --dev-id 'Euclidean_20_epochs' --PM-weight-initialization-factor 1 --inter-man-att 0 --inter-man-att-method 'v3' --att-metric 'tan_space' --base-resid-agg --base-activations 'act'
     
-    # Commands with dimensions / 2
-    DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans RxH "$half_dimension" R 16 kinpid
-    DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans RxS "$half_dimension" R 16 kinpid
-    DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans HxS "$half_dimension" R 16 kinpid
-    DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans RxR "$half_dimension" R 16 kinpid
-    
+
 done
 
-# # 16D
-# DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans S 16 R 16 kinpid
-# DDP_NGPUS=4 ./train_JetClass.sh TestPMTrans H 16 R 16 kinpid
-
-# # 32D
-# DDP_NGPUS=4 ./train_JetClass.sh PMTrans R 32 R 16 kinpid
-# DDP_NGPUS=4 ./train_JetClass.sh PMTrans RxH 16 R 16 kinpid
-# DDP_NGPUS=4 ./train_JetClass.sh PMTrans RxS 16 R 16 kinpid
-# DDP_NGPUS=4 ./train_JetClass.sh PMTrans HxS 16 R 16 kinpid
-# DDP_NGPUS=4 ./train_JetClass.sh PMTrans S 32 R 16 kinpid
-# DDP_NGPUS=4 ./train_JetClass.sh PMTrans H 32 R 16 kinpid
-
-# # # 64D
-# DDP_NGPUS=4 ./train_JetClass.sh PMTrans R 64 R 16 kinpid
-# DDP_NGPUS=4 ./train_JetClass.sh PMTrans RxH 32 R 16 kinpid
-# DDP_NGPUS=4 ./train_JetClass.sh PMTrans RxS 32 R 16 kinpid
-# DDP_NGPUS=4 ./train_JetClass.sh PMTrans HxS 32 R 16 kinpid
-# DDP_NGPUS=4 ./train_JetClass.sh PMTrans S 64 R 16 kinpid
-# DDP_NGPUS=4 ./train_JetClass.sh PMTrans H 64 R 16 kinpid
 
 
 
+dimensions=(128 96 64 48 32)
+
+# Loop over each dimension in the list
+for dimension in "${dimensions[@]}"; do
+    half_dimension=$((dimension / 2))  # Calculate half of the dimension
+
+    DDP_NGPUS=4 COMMENT=final_jetclass_part_lvl ./train_JetClass.sh PMTrans RxH "$half_dimension" R 16 kinpid --PM-weight-initialization-factor 1 --inter-man-att 0 --inter-man-att-method 'v3' --dev-id 'tuned_paper_v3_hidden' --att-metric 'tan_space' --num-epochs 20 --base-resid-agg --base-activations 'act'
+    
+    DDP_NGPUS=4 COMMENT=final_jetclass_part_lvl ./train_JetClass.sh PMTrans RxS "$half_dimension" R 16 kinpid --PM-weight-initialization-factor 1 --inter-man-att 0 --inter-man-att-method 'v3' --dev-id 'tuned_paper_v3_hidden' --att-metric 'tan_space' --num-epochs 20 --base-resid-agg --base-activations 'act'
+
+done
 
 
-# DDP_NGPUS=4 ./train_JetClass.sh PMTrans R 8 R 64
+dimensions=(128)
+
+# Loop over each dimension in the list
+for dimension in "${dimensions[@]}"; do
+    half_dimension=$((dimension / 2))  # Calculate half of the dimension
+
+    # Command with full dimension
+    DDP_NGPUS=4 COMMENT=final_jetclass_part_lvl ./train_JetClass.sh PMTrans R "$dimension" R 16 kinpid --num-epochs 30 --dev-id 'Euclidean_30_epochs_paper' --PM-weight-initialization-factor 1 --inter-man-att 0 --inter-man-att-method 'v3' --att-metric 'tan_space' --base-resid-agg --base-activations 'act'
 
 
+done
 
 
+dimensions=(160)
 
+# Loop over each dimension in the list
+for dimension in "${dimensions[@]}"; do
+    half_dimension=$((dimension / 2))  # Calculate half of the dimension
 
+    # Command with full dimension
+    DDP_NGPUS=4 COMMENT=final_jetclass_part_lvl ./train_JetClass.sh PMTrans RxH "$half_dimension" R 16 kinpid --PM-weight-initialization-factor 1 --inter-man-att 0 --inter-man-att-method 'v3' --dev-id 'tuned_paper_v3_hidden_30_epochs' --att-metric 'tan_space' --num-epochs 30 --base-resid-agg --base-activations 'act'
 
-# DDP_NGPUS=4 ./train_JetClass.sh PMTrans S 8 R 64
+    DDP_NGPUS=4 COMMENT=final_jetclass_part_lvl ./train_JetClass.sh PMTrans RxS "$half_dimension" R 16 kinpid --PM-weight-initialization-factor 1 --inter-man-att 0 --inter-man-att-method 'v3' --dev-id 'tuned_paper_v3_hidden_30_epochs' --att-metric 'tan_space' --num-epochs 30 --base-resid-agg --base-activations 'act'
 
-
-
-
-
+done
