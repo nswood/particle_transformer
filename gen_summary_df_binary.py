@@ -72,7 +72,7 @@ def process_directory(directory_path, csv_file_path, samples, sample_size, name 
         print(trained_models)
     else:
         trained_models = []
-        
+    target_tprs=[0.3, 0.5, 0.7, 0.99]
     # Outer loop: iterate over subdirectories (each representing a model)
     for model_name in os.listdir(directory_path):
         print(f'Loading {model_name}')
@@ -128,35 +128,37 @@ def process_directory(directory_path, csv_file_path, samples, sample_size, name 
                         if n_signals == len(signals):
                             name = signals[i]
                         y_true = np.array([label[i] for label in labels])
-                        y_score = np.array([(pred[i])/(pred[i] + pred[0]) for pred in preds])
+                        y_score = np.array([(pred[i])/(pred[i] + pred[0] + 10e-10) for pred in preds])
 
-                        auc, accuracy, rejections, _, _ = calculate_metrics(y_true, y_score)
+                        auc, accuracy, rejections, _, _ = calculate_metrics(y_true, y_score,target_tprs)
 
                         # Bootstrapping for rejection rate uncertainty
-                        rejection_stats = bootstrap_rejections(y_true, y_score, [0.3, 0.5, 0.7, 0.99], samples, sample_size)
-                        metrics.update({
-                            f'auc': auc,
-                            f'accuracy': accuracy,
-                            f'{name}_rejection_30_mean': rejection_stats[0.3][0],
-                            f'{name}_rejection_30_std': rejection_stats[0.3][1],
-                            f'{name}_rejection_50_mean': rejection_stats[0.5][0],
-                            f'{name}_rejection_50_std': rejection_stats[0.5][1],
-                            f'{name}_rejection_70_mean': rejection_stats[0.7][0],
-                            f'{name}_rejection_70_std': rejection_stats[0.7][1],
-                            f'{name}_rejection_99_mean': rejection_stats[0.99][0],
-                            f'{name}_rejection_99_std': rejection_stats[0.99][1],
-                        })
+#                         rejection_stats = bootstrap_rejections(y_true, y_score, [0.3, 0.5, 0.7, 0.99], samples, sample_size)
+#                         metrics.update({
+#                             f'auc': auc,
+#                             f'accuracy': accuracy,
+#                             f'{name}_rejection_30_mean': rejection_stats[0.3][0],
+#                             f'{name}_rejection_30_std': rejection_stats[0.3][1],
+#                             f'{name}_rejection_50_mean': rejection_stats[0.5][0],
+#                             f'{name}_rejection_50_std': rejection_stats[0.5][1],
+#                             f'{name}_rejection_70_mean': rejection_stats[0.7][0],
+#                             f'{name}_rejection_70_std': rejection_stats[0.7][1],
+#                             f'{name}_rejection_99_mean': rejection_stats[0.99][0],
+#                             f'{name}_rejection_99_std': rejection_stats[0.99][1],
+#                         })
                         
                         # Full test data
-                        _, _, rejections, _, _ = calculate_metrics(y_true, y_score, target_tprs)
+#                         _, _, rejections, _, _ = calculate_metrics(y_true, y_score, target_tprs)
                         for tpr in target_tprs:
                             if rejections[tpr] is not None:
-                                bootstrap_rejections[tpr].append(rejections[tpr])
+#                                 bootstrap_rejections[tpr].append(rejections[tpr])
                                 metrics.update({
-                                    f'{name}_rejection_30_full': rejection_stats[0.3],
-                                    f'{name}_rejection_50_full': rejection_stats[0.5],
-                                    f'{name}_rejection_70_full': rejection_stats[0.7],
-                                    f'{name}_rejection_99_full': rejection_stats[0.99],
+                                    f'auc': auc,
+                                    f'accuracy': accuracy,
+                                    f'{name}_rejection_30_full': rejections[0.3],
+                                    f'{name}_rejection_50_full': rejections[0.5],
+                                    f'{name}_rejection_70_full': rejections[0.7],
+                                    f'{name}_rejection_99_full': rejections[0.99],
                                 })
                         
 
