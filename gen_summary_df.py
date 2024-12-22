@@ -108,9 +108,10 @@ def process_directory(directory_path, csv_file_path, samples, sample_size):
         print(f'Loading {model_name}')
         try:
             if model_name not in trained_models:
-                print(f"Processing model: {model_name}")
+                
                 model_path = os.path.join(directory_path, model_name, 'predict_output')
                 if os.path.isdir(model_path):
+                    print(f"Processing model: {model_name}")
                     model_data = pd.DataFrame()  # DataFrame to hold combined data for this model
 
                     # Inner loop: iterate over .root files in the model's subdirectory
