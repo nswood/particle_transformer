@@ -22,21 +22,29 @@ else
     CMD="weaver"
 fi
 
-epochs=10
-samples_per_epoch=$((10000 * 256 / $NGPUS))
-samples_per_epoch_val=$((2000 * 256))
+epochs=20
+# samples_per_epoch=$((10000 * 256 / $NGPUS))
+# samples_per_epoch_val=$((500 * 256))
+
+samples_per_epoch=$((5000 * 256 / $NGPUS))
+samples_per_epoch_val=$((500 * 256))
+
+# samples_per_epoch=$((10 * 256 / $NGPUS))
+# samples_per_epoch_val=$((5 * 256))
+
 dataopts="--num-workers 1 --fetch-step 0.01"
 
 # PN, PFN, PCNN, ParT
 model=$1
-PART_GEOM=$2
-PART_DIM=$3
+
 
 
 if [[ "$model" == "ParT" ]]; then
     modelopts="networks/example_ParticleTransformer.py --use-amp"
     batchopts="--batch-size 512 --start-lr 1e-3"
 elif [[ "$model" == "PMNN" ]]; then
+    PART_GEOM=$2
+    PART_DIM=$3
     epochs=10
     # "kin"
     FEATURE_TYPE=$4
@@ -47,9 +55,11 @@ elif [[ "$model" == "PMNN" ]]; then
     fi
     modelopts="networks/example_PMNN.py --use-amp --optimizer-option weight_decay 0.01 --part-geom ${PART_GEOM} --part-dim ${PART_DIM}"
     batchopts="--batch-size 1024 --start-lr 1e-3"
-    suffix=${model}_${PART_GEOM}_${PART_DIM}_${FEATURE_TYPE}
+    suffix=${model}_${PART_GEOM}_${PART_DIM}_${FEATURE_TYPE}_${COMMENT}
     
 elif [[ "$model" == "PMTrans" ]]; then
+    PART_GEOM=$2
+    PART_DIM=$3 
     JET_GEOM=$4
     JET_DIM=$5
     FEATURE_TYPE=$6
@@ -64,10 +74,24 @@ elif [[ "$model" == "PMTrans" ]]; then
         exit 1
     fi
     modelopts="networks/example_PMTransformer.py --use-amp --optimizer-option weight_decay 0.01 --part-geom ${PART_GEOM} --part-dim ${PART_DIM} --jet-geom ${JET_GEOM} --jet-dim ${JET_DIM}"
-    suffix=${model}_${PART_GEOM}_${PART_DIM}_${JET_GEOM}_${JET_DIM}
-    batchopts="--batch-size 256 --start-lr 1e-3"
+    suffix=${model}_${PART_GEOM}_${PART_DIM}_${JET_GEOM}_${JET_DIM}_${COMMENT}
+    batchopts="--batch-size 256 --start-lr 5e-4"
     
+elif [[ "$model" == "MoG" ]]; then
+    FEATURE_TYPE=$2
+
+    if ! [[ "${FEATURE_TYPE}" =~ ^(full|kin|kinpid)$ ]]; then
+        echo "Invalid feature type ${FEATURE_TYPE}!"
+        exit 1
+    fi
+    
+    modelopts="networks/example_MoG.py --use-amp --optimizer-option weight_decay 0.01"
+    suffix=${model}_${COMMENT}
+    batchopts="--batch-size 256 --start-lr 5e-4"    
+
 elif [[ "$model" == "TestPMTrans" ]]; then
+    PART_GEOM=$2
+    PART_DIM=$3
     JET_GEOM=$4
     JET_DIM=$5
     FEATURE_TYPE=$6
@@ -84,7 +108,7 @@ elif [[ "$model" == "TestPMTrans" ]]; then
         exit 1
     fi
     modelopts="networks/example_PMTransformer_modified.py --use-amp --optimizer-option weight_decay 0.01 --part-geom ${PART_GEOM} --part-dim ${PART_DIM} --jet-geom ${JET_GEOM} --jet-dim ${JET_DIM}"
-    suffix=${model}_${PART_GEOM}_${PART_DIM}_${JET_GEOM}_${JET_DIM}
+    suffix=${model}_${PART_GEOM}_${PART_DIM}_${JET_GEOM}_${JET_DIM}_${COMMENT}
     batchopts="--batch-size 256 --start-lr 1e-3"
 elif [[ "$model" == "PN" ]]; then
     modelopts="networks/example_ParticleNet.py"
@@ -109,7 +133,7 @@ SAMPLE_TYPE=Pythia
 
 if [[ "$model" == "PMNN" ]]; then
     samples_per_epoch=$((500 * 1024 / $NGPUS))
-    samples_per_epoch_val=$((100 * 1024))
+    samples_per_epoch_val=$((50 * 1024))
 
     if [[ "$FEATURE_TYPE" == "h4q" || "$FEATURE_TYPE" == "h4q_test" ]]; then
         $CMD \
@@ -123,12 +147,12 @@ if [[ "$model" == "PMNN" ]]; then
         "HToWW4Q:${DATADIR}/${SAMPLE_TYPE}/test_20M/HToWW4Q_100.root" \
         "ZJetsToNuNu:${DATADIR}/${SAMPLE_TYPE}/test_20M/ZJetsToNuNu_100.root" \
         --data-config data/JetClass/JetClass_h4q.yaml --network-config $modelopts \
-        --model-prefix training/JetClass/${SAMPLE_TYPE}/${FEATURE_TYPE}/${model}/{auto}${suffix}/net \
+        --model-prefix /n/holystore01/LABS/iaifi_lab/Lab/nswood/training/JetClass/${SAMPLE_TYPE}/${FEATURE_TYPE}/${model}/{auto}${suffix}/net \
         $dataopts $batchopts \
         --samples-per-epoch ${samples_per_epoch} --samples-per-epoch-val ${samples_per_epoch_val} --num-epochs $epochs --gpus 0 \
         --optimizer rlion --log-dir JetClass_logs/JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}_{auto}${suffix}.log --predict-output pred.root \
         --tensorboard JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${suffix} \
-        "${@:7}"
+        "${@:5}"
     else
         $CMD \
         --data-train \
@@ -141,12 +165,12 @@ if [[ "$model" == "PMNN" ]]; then
         "TTBar:${DATADIR}/${SAMPLE_TYPE}/test_20M/TTBar_100.root" \
         "ZJetsToNuNu:${DATADIR}/${SAMPLE_TYPE}/test_20M/ZJetsToNuNu_100.root" \
         --data-config data/JetClass/JetClass_tbqq.yaml --network-config $modelopts \
-        --model-prefix training/JetClass/${SAMPLE_TYPE}/${FEATURE_TYPE}/${model}/{auto}${suffix}/net \
+        --model-prefix /n/holystore01/LABS/iaifi_lab/Lab/nswood/training/JetClass/${SAMPLE_TYPE}/${FEATURE_TYPE}/${model}/{auto}${suffix}/net \
         $dataopts $batchopts \
         --samples-per-epoch ${samples_per_epoch} --samples-per-epoch-val ${samples_per_epoch_val} --num-epochs $epochs --gpus 0 \
         --optimizer rlion --log-dir JetClass_logs/JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}_{auto}${suffix}.log --predict-output pred.root \
         --tensorboard JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${suffix} \
-        "${@:7}"
+        "${@:5}"
     fi
 elif [[ "$model" == "TestPMTrans" ]]; then
     $CMD \
