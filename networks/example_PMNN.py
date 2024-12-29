@@ -17,8 +17,8 @@ class PMNNWrapper(torch.nn.Module):
     def no_weight_decay(self):
         return {'mod.cls_token', }
 
-    def forward(self, points, features, lorentz_vectors, mask):
-        return self.mod(features, v=lorentz_vectors, mask=mask)
+    def forward(self, points, features, lorentz_vectors, mask,embed_parts = False):
+        return self.mod(features, v=lorentz_vectors, mask=mask,embed_parts=embed_parts)
 
 def get_model(data_config, **kwargs):
     print("kwargs:", kwargs)
