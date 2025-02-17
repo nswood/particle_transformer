@@ -65,16 +65,11 @@ four_momentum = df[['part_energy', 'part_px', 'part_py', 'part_pz']]
 part_eta = df['part_deta']
 part_phi = df['part_dphi']
 
-# %%
-jet_pt, jet_eta,jet_phi, jet_label = df['jet_pt'], df['jet_eta'],df['jet_phi'],df['label']
-four_momentum = df[['part_energy', 'part_px', 'part_py', 'part_pz']]
-part_eta = df['part_deta']
-part_phi = df['part_dphi']
 
 all_k = [3, 5, 8, 12]
 
 results = []
-for i in range(5000):
+for i in range(200):
     cur_data = four_momentum.iloc[i]
     cur_jet_data = [jet_pt[i], jet_eta[i], jet_label[i]]
 
@@ -147,6 +142,7 @@ for i in range(5000):
                 'delta': delta.item(),
                 'rel_delta': rel_delta.item(),
                 'c': c.item(),
+                'jet_id':i
             })
 
     # Convert the results to a DataFrame
@@ -168,8 +164,143 @@ for k in all_k:
     plt.savefig(os.path.join(plot_dir, f'GQ_k_{k}_delta_vs_energy.png'))
     plt.close()
 
+bins = np.linspace(results_df['delta'].min(), results_df['delta'].max(), 50)
+
+# We'll accumulate normalized histograms per jet
+sum_of_histograms = np.zeros(len(bins) - 1)
+n_jets = results_df['jet_id'].nunique()
+
+# Loop over jets
+for jet_id, group in results_df.groupby('jet_id'):
+    # Compute histogram counts for this jet
+    hist_counts, _ = np.histogram(group['delta'], bins=bins)
+    # Normalize so the area (sum of counts) is 1 for each jet
+    hist_counts = hist_counts / hist_counts.sum()
+    # Accumulate the normalized histograms
+    sum_of_histograms += hist_counts
+
+# Now average them
+avg_hist = sum_of_histograms / n_jets
+
+# Bin centers for plotting
+bin_centers = 0.5 * (bins[:-1] + bins[1:])
+
+# Plot the average histogram
+plt.figure()
+plt.bar(bin_centers, avg_hist, width=(bins[1]-bins[0]), alpha=0.7, align='center')
+plt.xlabel(r"$\delta$")
+plt.ylabel("Average normalized density")
+plt.xscale('log')
+plt.title("Average distribution of $\delta$ across all jets")
+plt.savefig(os.path.join(plot_dir, f'GQ_delta_dist.png'))
+plt.close()
+
+from scipy.optimize import curve_fit
+
+# ---------------------------------------------------------------------
+# 3. Plot each jet's histogram on the same figure
+# ---------------------------------------------------------------------
+fig, ax = plt.subplots(figsize=(8, 6))
+
+# Choose some bin edges for the histogram
+# You can pick based on your data range or auto (e.g. np.linspace).
+all_delta = results_df['delta'].values
+num_bins = 50
+bin_edges = np.linspace(all_delta.min(), all_delta.max(), num_bins)
+
+# Plot each jet's delta distribution
+for jet_id, group in results_df.groupby('jet_id'):
+    ax.hist(
+        group['delta'], 
+        bins=bin_edges,
+        histtype='step',
+        alpha=0.3, 
+        density=True,  # or True if you prefer normalized hist
+        edgecolor='blue',
+
+    )
+
+# ---------------------------------------------------------------------
+# 4. Fit a single "best fit" line (Gaussian) over ALL data
+# ---------------------------------------------------------------------
+# 4a. Compute the total histogram over all jets
+counts, edges = np.histogram(all_delta, bins=bin_edges, density = True)
+bin_centers = 0.5 * (edges[:-1] + edges[1:])
+
+# 4b. Use curve_fit to find the best-fit Gaussian parameters
+#     We'll use a simple initial guess: 
+#     A ~ max(counts), mu ~ mean of all data, sigma ~ std of all data
 
 
+
+# We'll try curve_fit with our two-sided Gaussian function:
+# import numpy as np
+from scipy.optimize import curve_fit
+
+# Define the exponential decay function
+def exp_decay(x, A, b, c):
+    return A * np.exp(-b * x) + c
+
+# Set ranges for random initial guesses
+param_bounds = {
+    'A': (0.1, 10),   # Amplitude range
+    'b': (0.01, 2),   # Decay rate range
+    'c': (-1, 1),     # Offset range
+}
+
+
+best_popt = None
+lowest_residual = np.inf
+
+num_trials = 1000
+x_fit = np.linspace(edges[0], edges[-1], 500)
+
+for _ in range(num_trials):
+    try:
+        # Generate random initial guesses
+        p0 = [
+            np.random.uniform(*param_bounds['A']),
+            np.random.uniform(*param_bounds['b']),
+            np.random.uniform(*param_bounds['c']),
+        ]
+        
+        # Perform the fit
+        popt, pcov = curve_fit(exp_decay, bin_centers, counts, p0=p0)
+        
+        # Calculate residuals (sum of squared differences)
+        residuals = np.sum((counts - exp_decay(bin_centers, *popt))**2)
+        
+        # Update best fit if current fit is better
+        if residuals < lowest_residual:
+            lowest_residual = residuals
+            best_popt = popt
+            
+    except RuntimeError:
+        # Skip fits that fail
+        continue
+
+# Plot the best fit if one was found
+if best_popt is not None:
+    A_fit, b_fit, c_fit = best_popt
+    y_fit = exp_decay(x_fit, A_fit, b_fit, c_fit)
+    ax.plot(x_fit, y_fit, 'r-', label='Exponential Decay Fit', linewidth=2)
+else:
+    print("Failed to find a suitable exponential decay fit after 1000 trials.")
+
+
+# ---------------------------------------------------------------------
+# 6. Figure decorations
+# ---------------------------------------------------------------------
+ax.set_xlabel(r'$\delta$')
+ax.set_ylabel('Counts')
+ax.set_title('All Jet Histograms + Best-Fit Gaussian Over ALL Data')
+# ax.set_yscale('log')
+# If you have many jets, the legend can get long. 
+# You might want to show just the best-fit line in the legend,
+# or limit the number of jets. For demonstration, let's show all:
+plt.tight_layout()
+plt.savefig(os.path.join(plot_dir, f'GQ_all_delta_dist.png'))
+plt.close()
 
 
 parquet_file = '/n/holystore01/LABS/iaifi_lab/Lab/nswood/TopLandscape/val_file.parquet'
@@ -267,6 +398,7 @@ for i in range(5000):
                 'delta': delta.item(),
                 'rel_delta': rel_delta.item(),
                 'c': c.item(),
+                'jet_id':i
             })
 
     # Convert the results to a DataFrame
