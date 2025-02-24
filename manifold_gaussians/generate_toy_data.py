@@ -139,12 +139,6 @@ def main():
     all_centroids = torch.stack(all_centroids).numpy()
     all_tan_centroids = torch.stack(all_tan_centroids).numpy()
     print('Data generated successfully!')
-    # print('Tan data shape:', all_tan_datasets.shape)
-    # print('Data shape:', all_datasets.shape)
-    # print('Labels shape:', all_labels.shape)
-    # print('Tan centroids shape:', all_tan_centroids.shape)
-    # print('Centroids shape:', all_centroids.shape)
-
 
     # Save the data.
     output_path = os.path.join(args.outdir, args.file_name+'.h5')
@@ -154,18 +148,6 @@ def main():
         f.create_dataset('tan_datasets', data=all_tan_datasets)
         f.create_dataset('centroids', data=all_centroids)
         f.create_dataset('tan_centroids', data=all_tan_centroids)
-    # print(f"Data saved to {output_path}")
-    # # Zero padding for datasets and labels if necessary
-    # max_samples = args.n_samples
-    # for i in range(len(all_datasets)):
-    #     if all_datasets[i].shape[1] < max_samples:
-    #         padding_size = max_samples - all_datasets[i].shape[1]
-    #         padding = torch.zeros((all_datasets[i].shape[0], padding_size, 2))
-    #         all_datasets[i] = torch.cat((all_datasets[i], padding), dim=1)
-    #         all_labels[i] = torch.cat((all_labels[i], torch.full((padding_size,), -1)))
 
-    # # Convert to single array
-    # all_datasets = np.stack(all_datasets).numpy()
-    # all_labels = torch.stack(all_labels).numpy()
 if __name__ == "__main__":
     main()
