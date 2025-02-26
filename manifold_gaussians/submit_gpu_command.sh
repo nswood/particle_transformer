@@ -1,8 +1,9 @@
 #!/bin/bash
-#SBATCH --job-name=toy         # Job name from the first argument
-#SBATCH --partition=shared   # Use the GPU partition
-#SBATCH --time=4:00:00        # Set a 12-hour time limit
+#SBATCH --job-name=man_gaus         # Job name from the first argument
+#SBATCH --partition=gpu   # Use the GPU partition
+#SBATCH --time=6:00:00        # Set a 12-hour time limit
 #SBATCH --nodes=1              # Single node
+#SBATCH --gres=gpu:1            # Request 1 GPU
 #SBATCH --ntasks-per-node=1    # Total of 4 tasks (GPUs) per node# Request 4 GPUs per node
 #SBATCH --cpus-per-task=1      # Set CPUs per task
 #SBATCH --mem=150G             # Set memory per node

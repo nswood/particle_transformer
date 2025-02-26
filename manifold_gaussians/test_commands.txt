@@ -1,0 +1,5 @@
+python manifold_gaussians/train_gaussian_classification.py --part_geom R --part_dim 2 --part_curvature_init -1 --batch_size 128 --data_dir /n/holystore01/LABS/iaifi_lab/Lab/nswood/hyperbolic_gaussians_toy --lr 0.001 --epochs 100 --test_run True --model_name R_2
+
+python manifold_gaussians/train_gaussian_classification.py --part_geom M --part_dim 2 --part_curvature_init -1 --batch_size 128 --data_dir /n/holystore01/LABS/iaifi_lab/Lab/nswood/hyperbolic_gaussians_toy --lr 0.001 --epochs 100 --test_run True --model_name H_2
+
+python manifold_gaussians/train_gaussian_classification.py --part_geom M --part_dim 2 --part_curvature_init -1 --batch_size 128 --data_dir /n/holystore01/LABS/iaifi_lab/Lab/nswood/hyperbolic_gaussians_toy --lr 0.001 --epochs 100 --test_run True --model_name R_2
