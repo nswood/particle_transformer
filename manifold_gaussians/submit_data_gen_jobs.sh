@@ -3,7 +3,7 @@
 
 # Hardcoded parameters
 # OUTDIR_BASE="/n/holystore01/LABS/iaifi_lab/Lab/nswood/testing_hyperbolic_gaussians_toy"
-OUTDIR_BASE="/n/holystore01/LABS/iaifi_lab/Lab/nswood/hyperbolic_gaussians_toy"
+OUTDIR_BASE="/n/holystore01/LABS/iaifi_lab/Lab/nswood/hyperbolic_gaussians_toy_updated"
 GEN_SCRIPT="manifold_gaussians/generate_toy_data.py"  # Path to your data generation script
 
 # Generation parameters
@@ -44,14 +44,14 @@ echo "Curvature: ${CURVATURE}, STD: ${STD}"
 echo "Output base directory: ${OUTDIR_BASE}"
 
 # Submit train jobs
-# for ((i=1; i<=TRAIN_BATCHES; i++)); do
-#     JOB_NAME="train_${i}"
-#     # Save train data under a dedicated subfolder
-#     OUTDIR="${OUTDIR_BASE}/train"
-#     CMD="python ${GEN_SCRIPT} --n_datapoints ${BATCH_TOTAL} --n_samples ${N_SAMPLES_PER_CENTROID} --n_centroids ${N_CENTROIDS} --curvature ${CURVATURE} --outdir ${OUTDIR} --file_name ${JOB_NAME}"
-#     echo "Submitting job: ${JOB_NAME}"
-#     sbatch manifold_gaussians/submit_command.sh ${JOB_NAME} "$CMD"
-# done
+for ((i=1; i<=TRAIN_BATCHES; i++)); do
+    JOB_NAME="train_${i}"
+    # Save train data under a dedicated subfolder
+    OUTDIR="${OUTDIR_BASE}/train"
+    CMD="python ${GEN_SCRIPT} --n_datapoints ${BATCH_TOTAL} --n_samples ${N_SAMPLES_PER_CENTROID} --n_centroids ${N_CENTROIDS} --curvature ${CURVATURE} --outdir ${OUTDIR} --file_name ${JOB_NAME}"
+    echo "Submitting job: ${JOB_NAME}"
+    sbatch manifold_gaussians/submit_command.sh ${JOB_NAME} "$CMD"
+done
 
 # Submit test jobs
 for ((i=1; i<=TEST_BATCHES; i++)); do

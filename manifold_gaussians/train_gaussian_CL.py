@@ -16,166 +16,22 @@ import torch.optim as optim
 
 sys.path.append('/n/home11/nswood/weaver-core')
 from weaver.nn.model.PMNN import PMNN
+from weaver.nn.model.PM_utils import ManifoldNNLayer
+import geoopt
 
 from scipy.optimize import linear_sum_assignment
 
-def hungarian_loss(outputs, labels):
-    """
-    Computes the loss using Hungarian matching.
-    
-    Args:
-        outputs (torch.Tensor): Logits of shape (B, N, num_classes)
-        labels (torch.Tensor): One-hot labels of shape (B, N, num_classes)
-        
-    Returns:
-        torch.Tensor: Averaged loss over the batch.
-    """
-    B, N, num_classes = outputs.shape
-    # Convert logits to probabilities
-    outputs_prob = torch.softmax(outputs, dim=-1)
-    total_loss = 0.0
 
-    for b in range(B):
-        # Build a cost matrix of shape (num_classes, num_classes)
-        cost_matrix = torch.zeros(num_classes, num_classes, device=outputs.device)
-        for i in range(num_classes):
-            for j in range(num_classes):
-                # Find indices corresponding to true class j in this sample.
-                indices = labels[b, :, j].bool()
-                if indices.sum() > 0:
-                    # Cost is the average negative log likelihood of the predicted probability for class i,
-                    # computed only over the points where the true class is j.
-                    cost_matrix[i, j] = -torch.log(outputs_prob[b, indices, i] + 1e-8).mean()
-                else:
-                    # If there are no points for class j, set cost to 0.
-                    cost_matrix[i, j] = 0.0
-        
-        # Use the Hungarian algorithm to get the optimal assignment.
-        cost_np = cost_matrix.detach().cpu().numpy()
-        row_ind, col_ind = linear_sum_assignment(cost_np)
-        
-        sample_loss = 0.0
-        # Sum the loss over the optimal assignments.
-        for i, j in zip(row_ind, col_ind):
-            indices = labels[b, :, j].bool()
-            if indices.sum() > 0:
-                sample_loss += -torch.log(outputs_prob[b, indices, i] + 1e-8).mean()
-        total_loss += sample_loss
-
-    return total_loss / B
-
-class PermutationInvariantLossVectorized(nn.Module):
-    def __init__(self, base_loss_fn, num_classes=4):
-        """
-        Args:
-            base_loss_fn (callable): A function that takes (pred, target) and returns a tensor
-                                     of shape (batch_size*num_perms,) containing per-sample losses.
-                                     The inputs should have shape (batch_size*num_perms, num_points, num_classes).
-            num_classes (int): Number of classes.
-        """
-        super(PermutationInvariantLossVectorized, self).__init__()
-        self.base_loss_fn = base_loss_fn
-        perms = list(itertools.permutations(range(num_classes)))
-        self.num_perms = len(perms)
-        # Register the permutation tensor as a buffer so it moves with the model.
-        self.register_buffer('perm_tensor', torch.tensor(perms))
-
-    def forward(self, y_pred, y_true):
-        """
-        Args:
-            y_pred (torch.Tensor): Predictions with shape (batch_size, num_points, num_classes)
-            y_true (torch.Tensor): Ground truth with shape (batch_size, num_points, num_classes)
-        Returns:
-            torch.Tensor: Averaged loss over the batch after selecting the best permutation.
-        """
-        batch_size, num_points, num_classes = y_pred.shape
-        if num_classes != self.perm_tensor.shape[1]:
-            raise ValueError("Mismatch in number of classes between predictions and permutation tensor.")
-
-        # Expand y_pred to shape: (batch_size, num_perms, num_points, num_classes)
-        y_pred_expanded = y_pred.unsqueeze(1).expand(batch_size, self.num_perms, num_points, num_classes)
-        # Expand the permutation tensor: shape (batch_size, num_perms, num_points, num_classes)
-        perm_tensor_expanded = self.perm_tensor.view(1, self.num_perms, 1, num_classes).expand(batch_size, self.num_perms, num_points, num_classes)
-        # Permute the class dimension for all samples.
-        y_pred_permuted = torch.gather(y_pred_expanded, dim=3, index=perm_tensor_expanded)
-        
-        # Expand y_true to shape: (batch_size, num_perms, num_points, num_classes)
-        y_true_expanded = y_true.unsqueeze(1).expand(batch_size, self.num_perms, num_points, num_classes)
-        # print('y_true_expanded:', y_true_expanded.shape)
-        # print('y_pred_permuted:', y_pred_permuted.shape) 
-        
-
-        # Compute loss per sample per permutation.
-        losses = self.base_loss_fn(y_pred_permuted.permute(0,3,2,1), y_true_expanded.permute(0,3,2,1))  # Should have shape (batch_size*num_perms,)
-        # print('Losses:', losses.shape)
-        losses = torch.sum(losses, dim=1)
-        losses = losses.view(batch_size, self.num_perms)
-        # print('Losses:', losses.shape)
-
-
-        
-        # Debug: Uncomment the next line to see the shape of losses.
-        # print("Losses shape:", losses.shape)
-        
-        # Reshape to (batch_size, num_perms)
-        losses = losses.view(batch_size, self.num_perms)
-        
-        # For each sample, take the minimum loss over the permutations.
-        best_loss, _ = losses.min(dim=1)
-        return best_loss.mean()
-
-class cluster_classifier_model(nn.Module):
-    def __init__(self, input_dim, output_dim, embedder_model):
-        super(cluster_classifier_model, self).__init__()
-        self.embedder_model = embedder_model
-
-        # self.agg_model = nn.Sequential(
-        #     nn.Linear(400*input_dim, 32),
-        #     nn.ReLU(),
-        #     nn.Linear(32, 24)
-        # )
-        self.layernorm = nn.LayerNorm(input_dim)
-        
-        # self.classifier = nn.Sequential(
-        #     nn.Linear(input_dim, 200),
-        #     nn.ReLU(),
-        #     nn.Linear(200, output_dim)
-        # )
-    def forward(self, x):
-        B,F,N = x.shape
-        # print('x:', x.shape)
-        tan_x = self.embedder_model(x,embed_parts = True)
-        
-        if type(tan_x) == tuple:
-            tan_x = tan_x[1]
-        # print('tan_x:', tan_x.shape)
-        tan_x = tan_x.view(B, -1)
-        # print('tan_x:', tan_x.shape)
-       
-        tan_x = self.layernorm(tan_x)
-        x = self.classifier(tan_x)
-        
-        x = x.view(B, N, -1)
-        # print('x:', x.shape)
-        return x
 
 class ParticleCLRModel(nn.Module):
-    def __init__(self, input_dim, projection_dim, embedder_model):
+    def __init__(self, input_dim, projection_dim, embedder_model, k = 0, learnable = True):
         super(ParticleCLRModel, self).__init__()
         self.embedder_model = embedder_model
-        self.layernorm = nn.LayerNorm(input_dim)
-        self.aggregator_head = nn.Sequential(
-            nn.Linear(400*input_dim, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32)
-        )
-        # Projection head: takes concatenated per-particle and global context features.
-        self.projection_head = nn.Sequential(
-            nn.Linear(input_dim +32, projection_dim),
-            nn.ReLU(),
-            nn.Linear(projection_dim, projection_dim)
-        )
+        self.man = geoopt.Stereographic(k=k, learnable=learnable)   
         
+        
+
+    
     def forward(self, x):
         # x: shape (B, C, N)
         # Assume embedder_model returns (B, D, N); we transpose to (B, N, D)
@@ -183,56 +39,36 @@ class ParticleCLRModel(nn.Module):
         # particle_emb = self.embedder_model(x, embed_parts=True)
         
         x = x.permute(0, 2, 1)
+
+        x = self.man.proju(self.man.origin(x.shape), x)
+        x = self.man.expmap0(x, project=True)
+
         particle_emb = self.embedder_model(x)
 
         if isinstance(particle_emb, tuple):
             particle_emb = particle_emb[1]
 
-        # print('Particle Emb:', particle_emb.shape)
         # particle_emb = particle_emb.transpose(1, 2)  # (B, N, D)
+        if self.man.name != 'Euclidean':
+            agg = self.man.weighted_midpoint(particle_emb, dim = 0,reducedim=[1],keepdim = True)
+            agg = self.man.logmap0(agg)
+            # particle_emb = self.man.mobius_add(agg, particle_emb)  
+        else: 
+            agg = torch.mean(particle_emb, dim=1,keepdim=True)
+            # particle_emb = agg + particle_emb
         
-        # Normalize each particle embedding
-        particle_emb = self.layernorm(particle_emb)
-        
-        # Compute global context as the mean over particles: (B, 1, D)
-        global_context = particle_emb.view(B,-1)
-        aggregated_context = self.aggregator_head(global_context)
-        # print('Global Context:', aggregated_context.shape)
-        
-        # Expand to (B, N, D)
-        aggregated_context = torch.repeat_interleave(aggregated_context.unsqueeze(1), N, dim=1)
-        # print('Aggregated Context:', aggregated_context.shape)
-        
-        # Concatenate per-particle embeddings with global context
-        concat_features = torch.cat([particle_emb, aggregated_context], dim=2)  # (B, N, 2*D)
-        # print('Concat Features:', concat_features.shape)
-        # Project and L2 normalize for contrastive learning
-        z = self.projection_head(concat_features)  # (B, N, projection_dim)
-        # print('Projection:', z.shape)
-        # z = F.normalize(z, dim=2)
-        return z
+        agg = agg.repeat(1, particle_emb.shape[1], 1)
+        particle_emb = self.man.logmap0(particle_emb)
+        particle_emb = torch.cat((particle_emb, agg), dim = -1)
 
-def compute_loss(outputs, labels, criterion, lambda_entropy=10):
-    # Compute the base loss using the permutation invariant criterion
-    base_loss = criterion(outputs, labels)
-    
-    # Compute softmax probabilities over classes
-    probs = torch.softmax(outputs, dim=-1)  # shape: (B, N, num_classes)
-    
-    # Compute the entropy for each prediction (numerical stability added)
-    entropy = -torch.sum(probs * torch.log(probs + 1e-8), dim=-1)  # shape: (B, N)
-    
-    # Average entropy per sample over points and the batch
-    avg_entropy = entropy.mean()
-    
-    # The entropy regularizer encourages high entropy (more uniform predictions)
-    entropy_reg = -avg_entropy  # subtracting rewards higher (more uniform) entropy
-    # print('Base Loss:', base_loss)
-    # print('Entropy Reg:', entropy_reg)
-    
-    # Final loss: base loss plus the entropy regularization term
-    loss = base_loss + lambda_entropy * entropy_reg
-    return loss
+        return particle_emb
+from typing import List, Optional
+
+def list_range(end: int):
+    res: List[int] = []
+    for d in range(end):
+        res.append(d)
+    return res
 
 def load_data_from_globs(glob_paths):
         all_data = []
@@ -279,21 +115,29 @@ def load_data_from_globs(glob_paths):
 
         return all_data, all_labels 
 
-def supervised_contrastive_loss(embeddings, labels, temperature=0.01, eps=1e-9):
+def supervised_contrastive_loss(embeddings, labels, temperature=0.01, eps=1e-9, sim_metric='cos'):
     """
     Vectorized supervised contrastive loss.
-    
+
     embeddings: Tensor of shape (B, N, D) where B is batch size, N is the number of particles, and D is embedding dim.
     labels: Tensor of shape (B, N) with integer class labels.
-    temperature: Scaling factor for cosine similarity.
+    temperature: Scaling factor for similarity scores.
     eps: A small value to avoid log(0).
+    sim_metric: 'dist' to use negative Euclidean distance as similarity, 'cos' to use cosine similarity.
     """
     B, N, D = embeddings.shape
     device = embeddings.device
 
-    # Compute pairwise cosine similarity. Since embeddings are normalized, dot product equals cosine similarity.
-    distance_matrix = torch.cdist(embeddings, embeddings, p=2)  # (B, N, N)
-    sim_matrix = -distance_matrix / temperature  # Invert distances to get similarity scores
+    # Compute similarity matrix based on the chosen metric.
+    if sim_metric == 'cos':
+        # Compute cosine similarity; assume embeddings are normalized.
+        sim_matrix = torch.bmm(embeddings, embeddings.transpose(1, 2)) / temperature
+    elif sim_metric == 'dist':
+        # Compute pairwise Euclidean distances and convert them to similarity scores.
+        distance_matrix = torch.cdist(embeddings, embeddings, p=2)  # (B, N, N)
+        sim_matrix = -distance_matrix / temperature  # Invert distances to get similarity scores
+    else:
+        raise ValueError("sim_metric must be either 'dist' or 'cos'.")
 
     # Create a mask to zero out self-similarities (diagonals) for each cloud.
     diag_mask = torch.eye(N, device=device, dtype=torch.bool).unsqueeze(0)  # (1, N, N)
@@ -324,18 +168,16 @@ def supervised_contrastive_loss(embeddings, labels, temperature=0.01, eps=1e-9):
     return loss
 
 
+
 # Skeleton function for loading a model.
-def load_model(model_name, device, part_geom, part_dim, part_curvature_init, part_curvature_trainable):
+def load_model(model_name, device, part_geom, part_dim, k, learnable):
+    k = float(k)
     if model_name == 'test':
         if type(part_dim) == tuple:
             part_dim = part_dim[0]
         elif type(part_dim) == str:
             part_dim = int(part_dim)
         
-        print('Building test model')
-        print('part_dim:', part_dim)
-        # print('type of part_dim:', type(part_dim))
-
         if part_dim is None:
             part_dim = 2
         # Example simple model
@@ -344,23 +186,43 @@ def load_model(model_name, device, part_geom, part_dim, part_curvature_init, par
             nn.ReLU(),
             nn.Linear(part_dim, part_dim)
         )
-        
+        man = geoopt.Euclidean()
     else:
         print('Building PM-MLP model')
         print('part_geom:', part_geom)
         print('part_dim:', part_dim)
-        print('part_curvature_init:', part_curvature_init)
-        print('part_curvature_trainable:', part_curvature_trainable)
+        print('part_curvature_init:', k)
+        print('part_curvature_trainable:', learnable)
         # Default model
-        embedder = PMNN(2,
-            part_geom = part_geom,
-            part_dim =  part_dim,
-            part_curvature_init = part_curvature_init,
-            learnable = part_curvature_trainable)
+        if part_geom == 'R':
+            man = geoopt.Euclidean()    
+            learnable = False
+        elif part_geom == 'H':
+            man = geoopt.PoincareBallExact(k=float(k), learnable=learnable)
+        elif part_geom == 'S':
+            man = geoopt.SphereProjectionExact(k=float(k), learnable=learnable)
+        elif part_geom == 'M':
+            man = geoopt.StereographicExact(k=float(k), learnable=learnable)
+        else:
+            raise ValueError(f"Unsupported part_geom: {part_geom}")
+        if type(part_dim) == str:
+            part_dim = int(part_dim)
+        embedder = nn.Sequential(
+            
+            ManifoldNNLayer(2, part_dim, float(k),learnable, 0, nn.ReLU(),True),
+            ManifoldNNLayer(part_dim, part_dim,float(k),learnable, 0, None,True)
+        )
+        
     input_dim= int(part_dim) 
-    output_dim = 2
-    model = ParticleCLRModel(input_dim, output_dim, embedder)
-    return model.to(device).double()
+    output_dim = 2 
+    model = ParticleCLRModel(input_dim, output_dim, embedder,k = k, learnable = learnable)
+    proj_model = nn.Sequential(
+            nn.Linear(2*input_dim,4*output_dim),
+            nn.ReLU(),
+            nn.BatchNorm1d(400),
+            nn.Linear(4*output_dim, output_dim)
+        )
+    return model.to(device).double(), proj_model.double()
 
 def main():
     parser = argparse.ArgumentParser(
@@ -378,7 +240,7 @@ def main():
                         help="Particle representation dimension")
     parser.add_argument('--part_curvature_init', type=str, default='-1',
                         help="Particle representation curvature initialization")
-    parser.add_argument('--part_curvature_trainable', type=bool, default=False,
+    parser.add_argument('--part_curvature_trainable', type=bool, default=True,
                         help="Particle representation curvature trainable")
     parser.add_argument('--batch_size', type=int, default=25,
                         help="Batch size for training.")
@@ -450,43 +312,60 @@ def main():
 
     # --- Training Setup ---
     # Example: load the model (this function should return a ParticleCLRModel instance)
-    model = load_model(args.model_name, device, args.part_geom, args.part_dim, 
-                    args.part_curvature_init, args.part_curvature_trainable)
-    # For CLR, ensure your loaded model is of type ParticleCLRModel (or update accordingly)
+    model, projection_model = load_model(args.model_name, device, args.part_geom, args.part_dim, args.part_curvature_init, args.part_curvature_trainable)
+    
+    model = model.to(device)
+    projection_model = projection_model.to(device) 
+
+
     num_params = sum(p.numel() for p in model.parameters())
+    num_params += sum(p.numel() for p in projection_model.parameters())
     print("Model parameters count:", num_params)
     params_file = os.path.join(run_dir, "model_parameters.txt")
     with open(params_file, "w") as f:
         f.write(f"Number of model parameters: {num_params}\n")
 
-    # Here we no longer use cross entropy; we use the contrastive loss.
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95)
+    optimizer = geoopt.optim.RiemannianAdam(model.parameters(), lr=args.lr)
 
+    proj_optimizer = torch.optim.Adam(projection_model.parameters(), lr=args.lr)
+
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95)
+    scheduler_proj = optim.lr_scheduler.ExponentialLR(proj_optimizer, gamma=0.95)
+
+
+    
     # --- Training Loop ---
     for epoch in range(args.epochs):
         model.train()
+        projection_model.train()  # Ensure projection_model is in train mode as well.
         running_loss = 0.0
         if args.test_run:
             start_time = time.time()
         for batch_inputs, batch_labels in train_loader:
             # Ensure inputs are floats and labels are longs
             inputs = batch_inputs.double().to(device)
-            # For contrastive loss, we use label indices directly.
             labels = batch_labels.long().to(device)  # shape: (B, N)
-            
+
             # Prepare inputs: shape (B, N, F) -> (B, F, N)
             B, N, F = inputs.shape
             inputs = inputs.permute(0, 2, 1)
 
+            # Zero gradients for both optimizers
             optimizer.zero_grad()
-            # Model outputs: per-particle embeddings (B, N, projection_dim)
-            outputs = model(inputs)
-            # Compute CLR loss using supervised pairs based on labels.
+            proj_optimizer.zero_grad()
+
+            # Forward pass through embedding model then projection model
+            embed = model(inputs)                     # embed shape: (B, N, projection_dim)
+            outputs = projection_model(embed)         # outputs shape: (B, N, projection_dim) or similar
+
+            # Compute supervised contrastive loss using labels
             loss = supervised_contrastive_loss(outputs, labels)
-            # print('Loss:', loss.item())
             loss.backward()
-            optimizer.step() 
+
+            # Update weights for both models
+            optimizer.step()
+            proj_optimizer.step()
+
             running_loss += loss.item()
         
         if args.test_run:
@@ -496,6 +375,7 @@ def main():
         
         # --- Validation Phase ---
         model.eval()
+        projection_model.eval()
         val_loss = 0.0
         with torch.no_grad():
             for batch_inputs, batch_labels in val_loader:
@@ -503,17 +383,22 @@ def main():
                 labels = batch_labels.long().to(device)  # shape: (B, N)
                 B, N, F = inputs.shape
                 inputs = inputs.permute(0, 2, 1)
-                outputs = model(inputs)
+                embed = model(inputs)
+                outputs = projection_model(embed)
                 loss = supervised_contrastive_loss(outputs, labels)
                 val_loss += loss.item()
         val_loss /= len(val_loader)
         print(f"Epoch [{epoch+1}/{args.epochs}], Train Loss: {epoch_loss:.4f}, Val Loss: {val_loss:.4f}")
         with open(os.path.join(run_dir, "log.txt"), "a") as f:
             f.write(f"Epoch {epoch+1}, Train Loss: {epoch_loss:.4f}, Val Loss: {val_loss:.4f}\n")
+
+        # Step the learning rate schedulers for both optimizers
         scheduler.step()
+        scheduler_proj.step()
 
     # --- Testing Phase ---
     model.eval()
+    projection_model.eval()
     test_loss = 0.0
     with torch.no_grad():
         for batch_inputs, batch_labels in test_loader:
@@ -521,7 +406,8 @@ def main():
             labels = batch_labels.long().to(device)
             B, N, F = inputs.shape
             inputs = inputs.permute(0, 2, 1)
-            outputs = model(inputs)
+            embed = model(inputs)
+            outputs = projection_model(embed)
             loss = supervised_contrastive_loss(outputs, labels)
             test_loss += loss.item()
     test_loss /= len(test_loader)

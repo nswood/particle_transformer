@@ -110,7 +110,9 @@ def main():
                     print(f"  Not enough points generated for cluster {i+1}. Retrying distribution {d+1}...")
                     success = False
                     break
-                tan_points = manifold.logmap(points, centroid) + manifold.logmap0(centroid)
+                # tan_points = manifold.logmap(points, centroid) + manifold.logmap0(centroid)
+                tan_points = manifold.logmap0(points)
+
                 labels.extend([i] * len(points))  # Assign class labels
                 tan_dataset.append(tan_points)
                 dataset.append(points)
