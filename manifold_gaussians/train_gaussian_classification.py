@@ -25,41 +25,10 @@ import geoopt
 
 # Import our new dense model from toy_utils (which now contains DenseMoG_MLP)
 from manifold_gaussians.toy_utils import DenseMoG_MLP
+from manifold_gaussians.losses import *
 
 import math
 import itertools
-
-class PermutationInvariantLossVectorized(nn.Module):
-    def __init__(self, base_loss_fn, num_classes=4):
-        super().__init__()
-        self.base_loss_fn = base_loss_fn
-        perms = list(itertools.permutations(range(num_classes)))
-        self.num_perms = len(perms)
-        self.register_buffer('perm_tensor', torch.tensor(perms))
-
-    def forward(self, y_pred, y_true):
-        batch_size, num_points, num_classes = y_pred.shape
-        # print('y_pred', y_pred.shape)
-        # print('y_true', y_true.shape)
-        if num_classes != self.perm_tensor.shape[1]:
-            raise ValueError("Mismatch in number of classes between predictions and permutation tensor.")
-
-        y_pred_expanded = y_pred.unsqueeze(1).expand(batch_size, self.num_perms, num_points, num_classes)
-        perm_tensor_expanded = self.perm_tensor.view(1, self.num_perms, 1, num_classes).expand(batch_size, self.num_perms, num_points, num_classes)
-        y_pred_permuted = torch.gather(y_pred_expanded, dim=3, index=perm_tensor_expanded)
-        y_true_expanded = y_true.unsqueeze(1).expand(batch_size, self.num_perms, num_points, num_classes)
-
-        losses = self.base_loss_fn(y_pred_permuted.permute(0, 3, 2, 1), y_true_expanded.permute(0, 3, 2, 1).float())
-        losses = torch.sum(losses, dim=1).view(batch_size, self.num_perms)
-        best_loss_values, best_perm_idx = losses.min(dim=1)
-        loss_value = best_loss_values.mean()
-
-        best_y_pred = y_pred_permuted[torch.arange(batch_size), best_perm_idx, :, :]
-        best_preds = best_y_pred.argmax(dim=2)
-        y_true_labels = y_true.argmax(dim=2)
-        correct = (best_preds == y_true_labels).float().mean()
-
-        return loss_value, correct
 
 def load_data_from_globs(glob_paths):
     all_data = []
@@ -107,6 +76,10 @@ def load_model(model_name, device, part_geom, part_dim, k, learnable, local_geom
     
     # Convert curvature input. If k equals '-1', use an empty list; otherwise, convert it to float
     # and build a list whose length equals the number of geometries.
+    
+    
+    k = k.replace("m", "-")
+    
     if ',' in k:
         curvature_list = [float(x) for x in k.split(',')]
     else:
@@ -120,6 +93,7 @@ def load_model(model_name, device, part_geom, part_dim, k, learnable, local_geom
     # Create the DenseMoG_MLP model using these parameters.
     # Note: Even if you have only one expert, shared_expert is kept True so that the model
     # still follows the original mechanism.
+    print(learnable)
     model = DenseMoG_MLP(
         input_dim=input_dim,
         n_parts=400,
@@ -130,7 +104,7 @@ def load_model(model_name, device, part_geom, part_dim, k, learnable, local_geom
         part_experts_dim=particle_dim,
         particle_feature_agg_method='add+norm',
         activation='relu',
-        dropout_rate=0.1,
+        dropout_rate=0.0,
         learnable=learnable
     )
     
@@ -154,7 +128,8 @@ def main():
     parser = argparse.ArgumentParser(
         description="Training script for Gaussian clustering using manifold representations"
     )
-    parser.add_argument('--data_dir', type=str, default="/n/holystore01/LABS/iaifi_lab/Lab/nswood/testing_hyperbolic_gaussians_toy",
+    parser.add_argument('--data_dir', type=str,
+                        default="/n/holystore01/LABS/iaifi_lab/Lab/nswood/testing_hyperbolic_gaussians_toy",
                         help="Path to directory containing 'train', 'test', and 'val' subdirectories with h5 files.")
     parser.add_argument('--outdir', type=str, default='testing_manifold_gaussians',
                         help="Directory to store training run outputs.")
@@ -164,22 +139,25 @@ def main():
                         help="Particle representation geometry")
     parser.add_argument('--part_dim', type=str, default='2',
                         help="Particle representation dimension")
-    parser.add_argument('--part_curvature_init', type=str, default='-1',
+    parser.add_argument('--part_curvature_init', type=str, default='m1',
                         help="Particle representation curvature initialization")
-    parser.add_argument('--part_curvature_trainable', type=bool, default=True,
-                        help="Particle representation curvature trainable")
+    parser.add_argument('--part_curvature_trainable', action='store_true',
+                        help="Enable particle representation curvature training")
     parser.add_argument('--batch_size', type=int, default=25,
                         help="Batch size for training.")
     parser.add_argument('--lr', type=float, default=0.001,
                         help="Learning rate.")
     parser.add_argument('--epochs', type=int, default=10,
                         help="Number of training epochs.")
-    parser.add_argument('--test_run', type=bool, default=False,
-                        help="test_run.")
-    parser.add_argument('--local_geom_weighting', type=bool, default=False,
-                        help="Enable local geometry weighting.")
+    parser.add_argument('--test_run', action='store_true',
+                        help="Run in test mode.")
+    parser.add_argument('--local_geom_weighting', action='store_true',
+                        help="Enable local geometry weighting."),
+    parser.add_argument('--visualize_outputs', action='store_true',
+                        help="Visualize outputs.")
     args = parser.parse_args()
 
+    
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     run_dir = os.path.join(args.outdir, f'run_{args.model_name}_{timestamp}')
     os.makedirs(run_dir, exist_ok=True)
@@ -232,7 +210,8 @@ def main():
     # --- Load Model ---
     # Note: The new load_model now returns a DenseMoG_MLP and a projection model.
     model, projection_model = load_model(args.model_name, device, args.part_geom, args.part_dim,
-                                           args.part_curvature_init, args.part_curvature_trainable,
+                                           args.part_curvature_init,
+                                           args.part_curvature_trainable,
                                            args.local_geom_weighting)
     
     # Count parameters.
@@ -255,7 +234,9 @@ def main():
     log_file = os.path.join(run_dir, "log.csv")
     with open(log_file, "w", newline="") as f:
         log_writer = csv.writer(f)
-        log_writer.writerow(["Epoch", "Train Loss", "Val Loss", "Val Accuracy"])
+        cols = ["Epoch", "Train Loss", "Val Loss", "Val Accuracy"]
+        cols += [f"Curvature {m.name} {i}" for i,m in enumerate(model.part_manifolds)]
+        log_writer.writerow(cols)
 
     # --- Training Loop ---
     for epoch in range(args.epochs):
@@ -274,17 +255,8 @@ def main():
             proj_optimizer.zero_grad()
 
             embed = model(inputs)         # DenseMoG_MLP expects (C, N, B) and returns dense features.
-            # print('embed', torch.isnan(embed).any())
-            # print('embed', embed.shape)
             outputs = projection_model(embed)
-            # print('outputs', outputs.shape)
-            # print('labels', labels.shape)
-            # print('max embed', torch.max(embed))
-            # print('min embed', torch.min(embed))
-            # print('outputs', torch.isnan(outputs).any())
-            # print('labels', torch.isnan(labels).any())
             loss, correct = criterion(outputs, labels)
-            # print('loss', torch.isnan(loss).any())
             loss.backward()
             optimizer.step()
             proj_optimizer.step()
@@ -313,12 +285,18 @@ def main():
         val_loss /= len(val_loader)
         val_acc = val_acc_sum / n_batches
         log_line = f"Epoch [{epoch+1}/{args.epochs}], Train Loss: {epoch_loss:.4f}, Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}, Cur LR: {scheduler.get_last_lr()[0]:.6e}"
+
+        cur_curvatures = [m.k.item() for m in model.part_manifolds]
+        log_line += f", Curvatures: {cur_curvatures}"
+        
         print(log_line)
         with open(os.path.join(run_dir, "log.txt"), "a") as log_f:
             log_f.write(log_line + "\n")
+        # Prepare a CSV row that includes a column for each curvature value.
+        csv_row = [epoch+1, f"{epoch_loss:.4f}", f"{val_loss:.4f}", f"{val_acc:.4f}"] + [f"{curv:.4f}" for curv in cur_curvatures]
         with open(log_file, "a", newline="") as f:
             log_writer = csv.writer(f)
-            log_writer.writerow([epoch+1, f"{epoch_loss:.4f}", f"{val_loss:.4f}", f"{val_acc:.4f}"])
+            log_writer.writerow(csv_row)
         scheduler.step(val_loss)
         scheduler_proj.step(val_loss)
 
@@ -340,6 +318,47 @@ def main():
     model_file = os.path.join(run_dir, f"{args.model_name}_final.pth")
     torch.save(model.state_dict(), model_file)
     print(f"Training complete. Model saved to {model_file}")
+
+    if args.visualize_outputs:
+        import matplotlib.pyplot as plt
+        _,_,best_preds, y_true_labels = criterion(outputs, labels, return_labels=True)
+
+        for i in range(5):
+            with torch.no_grad():
+                cur_labels = best_preds[i].cpu().numpy()
+                cur_true_labels = y_true_labels[i].cpu().numpy()
+                cur_inputs = inputs[:,:,i]
+                cur_inputs = cur_inputs.permute(1, 0)
+                print('Cur_labels:',cur_labels.shape)
+                print('Cur_true_labels:',cur_true_labels.shape)
+                
+                
+                
+                # Create a side-by-side plot for true labels and predicted labels.
+                fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+                
+                # Extract coordinates and labels.
+                x_coords = cur_inputs[:,0].cpu().numpy()
+                y_coords = cur_inputs[:,1].cpu().numpy()
+                
+                # Left plot: True labels.
+                sc0 = ax[0].scatter(x_coords, y_coords, c=cur_true_labels, cmap='viridis')
+                ax[0].set_title(f"True Labels - Sample {i}")
+                ax[0].set_xlabel("X")
+                ax[0].set_ylabel("Y")
+                fig.colorbar(sc0, ax=ax[0])
+                
+                # Right plot: Predicted labels.
+                sc1 = ax[1].scatter(x_coords, y_coords, c=cur_labels, cmap='viridis')
+                ax[1].set_title(f"Predicted Labels - Sample {i}")
+                ax[1].set_xlabel("X")
+                ax[1].set_ylabel("Y")
+                fig.colorbar(sc1, ax=ax[1])
+                
+                plt.tight_layout()
+                plt.show()
+                plt.savefig(os.path.join(run_dir, f"sample_{i}_labels.png"))
+        model.eval()
 
 if __name__ == '__main__':
     main()

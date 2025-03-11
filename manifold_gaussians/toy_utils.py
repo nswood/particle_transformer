@@ -252,11 +252,14 @@ class SimpleExpertMLP(nn.Module):
         act = nn.ReLU() if activation=='relu' else None
         use_bias = True
         for m in manifolds:
-            k_val = 0 if m.name == 'Euclidean' else m.k
+            
             mlp = nn.Sequential(
-                ManifoldNNLayer(input_dim, output_dim, k_val, True, dropout_rate, act, use_bias),
-                ManifoldNNLayer(output_dim, output_dim, k_val, True, dropout_rate, None, use_bias)
+                ManifoldNNLayer(input_dim, output_dim, m, dropout_rate, act, use_bias),
+                ManifoldNNLayer(output_dim, output_dim, m, dropout_rate, act, use_bias),
+                ManifoldNNLayer(output_dim, output_dim, m, dropout_rate, act, use_bias),
+                ManifoldNNLayer(output_dim, output_dim, m, dropout_rate, None, False)
             )
+
             self.expert_mlps.append(mlp)
     
     def forward(self, x_parts):
@@ -290,7 +293,7 @@ class DenseMoG_MLP(nn.Module):
                  shared_expert_ratio=2,
                  particle_feature_agg_method='add+norm',
                  activation='relu',
-                 dropout_rate=0.1,
+                 dropout_rate=0.0,
                  learnable=True, 
                  **kwargs):
         super().__init__(**kwargs)
