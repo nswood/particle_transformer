@@ -16,6 +16,18 @@ from weaver.nn.model.PMNN import PMNN
 from weaver.nn.model.PM_utils import ManifoldNNLayer
 import geoopt
 
+def class_balance_regularizer(predictions, num_classes):
+    """
+    Regularizer to encourage equal number of each class in predictions.
+    Assumes predictions are integer class labels.
+    """
+    # Flatten predictions so we count all entries
+    predictions = predictions.view(-1)
+    class_counts = torch.bincount(predictions, minlength=num_classes).float()
+    total_count = predictions.size(0)
+    expected_count = total_count / num_classes
+    regularizer = torch.sum((class_counts - expected_count) ** 2)
+    return regularizer
 
 class PermutationInvariantLossVectorized(nn.Module):
     def __init__(self, base_loss_fn, num_classes=4):
@@ -59,40 +71,52 @@ class DistortionLoss(nn.Module):
         super().__init__(**kwargs)
         self.w_1 = w_1
 
-    def calculate_embedding_distance_matrix(self, embeddings, manifolds, selected_manifolds,local_topology_weights, particle_mask):
+    def calculate_embedding_distance_matrix(self, embeddings, manifolds, local_topology_weights):
         dist_matrices = []
-        for i in range(len(embeddings)):
-            cur_dist_matrix = torch.zeros(embeddings[i][0].shape[0], embeddings[i][0].shape[0]).to(selected_manifolds.device)
+        batch, num_parts, num_experts, features = embeddings.shape
+        # print('embeddings', embeddings.shape)
+        for i in range(batch):
+            # print('embeddings[i]', embeddings[i].shape)
+            cur_dist_matrix = torch.zeros(embeddings[i].shape[0], embeddings[i].shape[0]).to(embeddings.device)
+            # print('cur_dist_matrix', cur_dist_matrix.shape)
             # print(f'cur_dist_matrix initialized for batch {i}:', torch.isnan(cur_dist_matrix).any())
-            
+            # print('local_topology_weights', local_topology_weights.shape)
             cur_local_topology_weights = local_topology_weights[i]
+            # print('cur_local_topology_weights', cur_local_topology_weights.shape)
             cur_weight_tensor = cur_local_topology_weights.unsqueeze(1) * cur_local_topology_weights.unsqueeze(0)
             cur_weight_tensor = torch.softmax(cur_weight_tensor, dim=-1)
             
             
-            cur_mask  = particle_mask[i]
-            cur_matrix_mask = cur_mask.unsqueeze(0) * cur_mask.unsqueeze(1)
-            # print(f'cur_matrix_mask for batch {i}:', torch.isnan(cur_matrix_mask).any())
             
-            for j, k in enumerate(embeddings[i]):
-                cur_particles = embeddings[i][j]
-                cur_expert = selected_manifolds[i][j]
+            
+            # print(f'cur_matrix_mask for batch {i}:', torch.isnan(cur_matrix_mask).any())
+            # batch, num_parts, num_experts, features
+            for j in range(num_experts):
+                cur_particles = embeddings[i,:,j]
+                # print('cur_particles', cur_particles.shape)
+                cur_expert = j
                 cur_manifold = manifolds[cur_expert]
                 
                 if cur_manifold.name == 'Euclidean':
                     euclidean_dist_matrix = torch.cdist(cur_particles, cur_particles)**2
                     # print(f'euclidean_dist_matrix for batch {i}, expert {j}:', torch.isnan(euclidean_dist_matrix).any())
+                    # print('cur_weight_tensor', cur_weight_tensor.shape)
+                    # print('euclidean_dist_matrix', euclidean_dist_matrix.shape)
                     scaled_distance_matrix = cur_weight_tensor[:,:,cur_expert] * euclidean_dist_matrix
                     # print(f'scaled_distance_matrix (Euclidean) for batch {i}, expert {j}:', torch.isnan(scaled_distance_matrix).any())
-                    cur_dist_matrix += scaled_distance_matrix.to(selected_manifolds.device)
+                    cur_dist_matrix += scaled_distance_matrix.to(embeddings.device)
                 else:
-                    manifold_distance_matrix = (cur_manifold.dist_matrix(cur_particles, cur_particles)**2).to(selected_manifolds.device)
+                    manifold_distance_matrix = (cur_manifold.dist_matrix(cur_particles, cur_particles)**2).to(embeddings.device)
                     # print(f'manifold_distance_matrix for batch {i}, expert {j}:', torch.isnan(manifold_distance_matrix).any())
+                    # print('cur_weight_tensor', cur_weight_tensor.shape)
+                    # print('manifold_distance_matrix', manifold_distance_matrix.shape)
+                    # print('cur_weight_tensor[:,:,cur_expert]', cur_weight_tensor[:,:,cur_expert].shape)
                     scaled_distance_matrix = cur_weight_tensor[:,:,cur_expert] * manifold_distance_matrix
+                    # print('scaled_distance_matrix', scaled_distance_matrix.shape)
                     # print(f'scaled_distance_matrix (Manifold) for batch {i}, expert {j}:', torch.isnan(scaled_distance_matrix).any())
-                    cur_dist_matrix += scaled_distance_matrix.to(selected_manifolds.device)
+                    cur_dist_matrix += scaled_distance_matrix.to(embeddings.device)
 
-                cur_dist_matrix = cur_matrix_mask * cur_dist_matrix
+                
                 # print(f'cur_dist_matrix after masking for batch {i}:', torch.isnan(cur_dist_matrix).any())
             dist_matrices.append(cur_dist_matrix)
         dist_matrices = torch.stack(dist_matrices)
@@ -100,19 +124,18 @@ class DistortionLoss(nn.Module):
         return dist_matrices
     
     # No padding mask yet
-    def forward(self, local_topology_weights, embeddings,manifolds,particle_mask, selected_manifolds, graph_distance_matrix):
-
+    def forward(self, local_topology_weights, embeddings,manifolds,graph_distance_matrix):
+        # print('local_topology_weights', local_topology_weights.shape)
+        # print('embeddings', embeddings.shape)
         # Calculating 1/V^2 for zero padded events
-        num_particles = particle_mask.sum(1)
-        loss_scale_mask = 1 / (num_particles**2)
-        loss_scale_mask = loss_scale_mask.unsqueeze(-1).unsqueeze(-1)
+        
         
         # Calculating embedding through product manifold distances
-        embedding_distance_matrix = self.calculate_embedding_distance_matrix(embeddings,manifolds,selected_manifolds,local_topology_weights,particle_mask)
+        embedding_distance_matrix = self.calculate_embedding_distance_matrix(embeddings,manifolds,local_topology_weights)
         # In future resolve nan values in graph_distance_matrix
         graph_distance_matrix = torch.where(torch.isnan(graph_distance_matrix), embedding_distance_matrix, graph_distance_matrix)
 
-        sum_loss = torch.sum(loss_scale_mask*torch.abs((embedding_distance_matrix / (graph_distance_matrix+10e-10)) ** 2 - 1))
+        sum_loss = torch.sum(torch.abs((embedding_distance_matrix / (graph_distance_matrix+10e-10)) ** 2 - 1))
 
         sum_loss = sum_loss * self.w_1
         B = len(embeddings)

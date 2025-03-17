@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=toy         # Job name from the first argument
 #SBATCH --partition=shared   # Use the GPU partition
-#SBATCH --time=4:00:00        # Set a 12-hour time limit
+#SBATCH --time=30:00:00        # Set a 12-hour time limit
 #SBATCH --nodes=1              # Single node
 #SBATCH --ntasks-per-node=1    # Total of 4 tasks (GPUs) per node# Request 4 GPUs per node
 #SBATCH --cpus-per-task=1      # Set CPUs per task

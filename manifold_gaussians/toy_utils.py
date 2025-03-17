@@ -252,13 +252,24 @@ class SimpleExpertMLP(nn.Module):
         act = nn.ReLU() if activation=='relu' else None
         use_bias = True
         for m in manifolds:
-            
-            mlp = nn.Sequential(
-                ManifoldNNLayer(input_dim, output_dim, m, dropout_rate, act, use_bias),
-                ManifoldNNLayer(output_dim, output_dim, m, dropout_rate, act, use_bias),
-                ManifoldNNLayer(output_dim, output_dim, m, dropout_rate, act, use_bias),
-                ManifoldNNLayer(output_dim, output_dim, m, dropout_rate, None, False)
-            )
+            if m.name == 'Euclidean':
+                mlp = nn.Sequential(
+                    nn.Linear(input_dim, output_dim),
+                    act,
+                    nn.Linear(output_dim, output_dim),
+                    act,
+                    nn.Linear(output_dim, output_dim),
+                    act,
+                    nn.Linear(output_dim, output_dim)
+                    
+                )
+            else:
+                mlp = nn.Sequential(
+                    ManifoldNNLayer(input_dim, output_dim, m, dropout_rate, act, use_bias),
+                    ManifoldNNLayer(output_dim, output_dim, m, dropout_rate, act, use_bias),
+                    ManifoldNNLayer(output_dim, output_dim, m, dropout_rate, act, use_bias),
+                    ManifoldNNLayer(output_dim, output_dim, m, dropout_rate, None, False)
+                )
 
             self.expert_mlps.append(mlp)
     
@@ -490,11 +501,11 @@ class DenseMoG_MLP(nn.Module):
             # Broadcast midpoint to all particles: (B, N, F)
             midpoint_broadcast = midpoint.expand(-1, N, -1)
             # Concatenate the original embedding with the broadcast midpoint along feature dimension.
-            combined = torch.cat([expert_emb, midpoint_broadcast], dim=-1)  # (B, N, 2F)
-            combined_experts.append(combined)
-        # Stack over expert branches to form (B, N, n_experts, F) then sum over experts.
-        combined_experts = torch.stack(combined_experts, dim=2)  # (B, N, n_experts, F)
-        combined_experts = torch.sum(combined_experts, dim=2)      # (B, N, F)
+            # combined = torch.cat([expert_emb, midpoint_broadcast], dim=-1)  # (B, N, 2F)
+            # combined_experts.append(combined)
+            # combined = torch.cat([expert_emb, midpoint_broadcast], dim=-1)  # (B, N, 2F)
+            combined_experts.append(expert_emb)
+        combined_experts = torch.cat(combined_experts, dim=-1)  # (B, N, n_experts*F)
         return combined_experts
 
     def forward(self, x, v=None, neighbor_indices=None, mask=None, uu=None, uu_idx=None, embed=False):
@@ -531,8 +542,9 @@ class DenseMoG_MLP(nn.Module):
         # Map off of manifolds
         proc_parts = self.map_off_of_manifolds_dense(proc_parts)
         # Scale expert outputs by local geometry weights.
-        proc_parts = self.scale_PM_embeddings_dense(proc_parts, local_geom_weights)  # (B, N, n_part_man, part_experts_dim)
+        scaled_proc_parts = self.scale_PM_embeddings_dense(proc_parts, local_geom_weights)  # (B, N, n_part_man, part_experts_dim)
+        
         # Combine each expert branch's per-particle embedding with its weighted midpoint.
-        combined_expert = self.combine_expert_with_midpoint(proc_parts, local_geom_weights)
-        return combined_expert
+        combined_expert = self.combine_expert_with_midpoint(scaled_proc_parts, local_geom_weights)
+        return combined_expert, local_geom_weights,proc_parts
         # return combined_expert, proc_parts, self.part_manifolds

@@ -33,4 +33,11 @@ python manifold_gaussians/train_gaussian_classification.py --part_geom R,M --par
 python manifold_gaussians/train_gaussian_classification.py --part_geom R,M --part_dim 4 --part_curvature_init 0,-1 --batch_size 1024 --data_dir /n/holystore01/LABS/iaifi_lab/Lab/nswood/hyperbolic_gaussians_toy_updated --lr 0.01 --epochs 100 --model_name HxR_2 --outdir testing_updated_gaussian_classificatin --test_run True
 
 
+python manifold_gaussians/train_gaussian_classification.py --part_geom R --part_dim 2 --part_curvature_init '0' --batch_size 1024 --data_dir /n/holystore01/LABS/iaifi_lab/Lab/nswood/hyperbolic_gaussians_toy_updated --lr 0.01 --epochs 30 --model_name R_2 --outdir testing_updated_gaussian_class --visualize_outputs
 
+python manifold_gaussians/train_gaussian_classification.py --part_geom M,R --part_dim 2 --part_curvature_init 'm1,0' --batch_size 64 --data_dir /n/holystore01/LABS/iaifi_lab/Lab/nswood/hyperbolic_gaussians_toy_updated --lr 0.01 --epochs 30 --model_name HxR_2 --outdir testing_updated_gaussian_class --local_geom_weighting --dist_reg --visualize_outputs --test_run
+
+
+python manifold_gaussians/train_gaussian_classification.py --part_geom R,M --part_dim 2 --part_curvature_init '0,m1' --batch_size 1024 --data_dir /n/holystore01/LABS/iaifi_lab/Lab/nswood/hyperbolic_gaussians_toy_updated --lr 0.001 --epochs 30 --model_name RxH_2 --outdir testing_updated_gaussian_class --visualize_outputs
+
+python manifold_gaussians/train_gaussian_classification.py --part_geom R --part_dim 2 --part_curvature_init '0' --batch_size 1024 --data_dir /n/holystore01/LABS/iaifi_lab/Lab/nswood/hyperbolic_gaussians_toy_updated --lr 0.01 --epochs 100 --model_name R_2 --outdir testing_updated_gaussian_class --visualize_outputs 
