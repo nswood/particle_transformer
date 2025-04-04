@@ -1,0 +1,1 @@
+python toy_trees/train_tree_classification.py --part_geom R,M --part_dim 3 --part_curvature_init 0,-1 --batch_size 256 --data_dir /n/holystore01/LABS/iaifi_lab/Lab/nswood/toy_tree_test_dataset --lr 0.001 --epochs 10 --model_name RxH_2 --outdir test_toy_tree_classification --test_run 
